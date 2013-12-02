@@ -1,0 +1,31 @@
+Commands.cfg
+-----------------
+define command {
+        command_name    cisco-module
+        command_line    $USER1$/check-cisco.pl -H $HOSTADDRESS$ -C $ARG1$ -t module -w $ARG2$ -c $ARG3$
+        }
+define command {
+        command_name    cisco-temp
+        command_line    $USER1$/check-cisco.pl -H $HOSTADDRESS$ -C $ARG1$ -t temp -w $ARG2$ -c $ARG3$
+        }
+define command {
+        command_name    cisco-fan
+        command_line    $USER1$/check-cisco.pl -H $HOSTADDRESS$ -C $ARG1$ -t fan
+        }
+define command {
+        command_name    cisco-ps
+        command_line    $USER1$/check-cisco.pl -H $HOSTADDRESS$ -C $ARG1$ -t ps
+        }
+
+define command {
+        command_name    cisco-int
+        command_line    $USER1$/check-cisco.pl -H $HOSTADDRESS$ -C $ARG1$ -t int -w $ARG2$ -c $ARG3$ -o $ARG4$
+        }
+define command {
+        command_name    cisco-cpu
+        command_line    $USER1$/check-cisco.pl -H $HOSTADDRESS$ -C $ARG1$ -t cpu -w $ARG2$ -c $ARG3$
+        }
+define command {
+        command_name    cisco-mem
+        command_line    $USER1$/check-cisco.pl -H $HOSTADDRESS$ -C $ARG1$ -t mem -w $ARG2$ -c $ARG3$
+        }
