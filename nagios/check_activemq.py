@@ -29,8 +29,11 @@ def prepareOpts():
     }
     def err( string ):
         print 'Error: {0}'.format( string )
-        parser.print_help()
         print __doc__
+        parser.print_help()
+        print '\nTypes:'
+        for k in cmds:
+            print '  {0}: {1}'.format(k ,cmds[k])
         exit(1)
 
     parser = OptionParser()

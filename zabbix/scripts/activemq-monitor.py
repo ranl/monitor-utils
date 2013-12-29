@@ -22,8 +22,8 @@ def prepareOpts():
 
 	def err( string ):
 		print 'Error: {0}'.format( string )
-		parser.print_help()
 		print __doc__
+		parser.print_help()
 		exit(1)
 
 	parser = OptionParser()
