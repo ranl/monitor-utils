@@ -7,7 +7,6 @@ Monitor ActiveMQ server via its http web interface
 from HTMLParser import HTMLParser
 from optparse import OptionParser
 import xml.etree.ElementTree as ET
-import json
 import urllib2
 import urllib
 
