@@ -60,36 +60,36 @@ class ConsumerHTMLParser(HTMLParser):
 	a = False
 	
 	def reset_vars(self):
-		ConsumerHTMLParser.consumers = []
-		ConsumerHTMLParser.table = False
-		ConsumerHTMLParser.body = False
-		ConsumerHTMLParser.tr = False
-		ConsumerHTMLParser.td = False
-		ConsumerHTMLParser.a = False
+		self.consumers = []
+		self.table = False
+		self.body = False
+		self.tr = False
+		self.td = False
+		self.a = False
 	
 	def handle_starttag(self, tag, attrs):
-		if ConsumerHTMLParser.td and tag == 'a':
-			ConsumerHTMLParser.a = True
-		elif ConsumerHTMLParser.tr and tag == 'td':
-			ConsumerHTMLParser.td = True
-		elif ConsumerHTMLParser.body and tag == 'tr':
-			ConsumerHTMLParser.tr = True
-		elif ConsumerHTMLParser.table and tag == 'tbody':
-			ConsumerHTMLParser.body = True
+		if self.td and tag == 'a':
+			self.a = True
+		elif self.tr and tag == 'td':
+			self.td = True
+		elif self.body and tag == 'tr':
+			self.tr = True
+		elif self.table and tag == 'tbody':
+			self.body = True
 		elif tag == 'table':
-			ConsumerHTMLParser.table = ('id', 'messages') in attrs
+			self.table = ('id', 'messages') in attrs
 		
 	def handle_data(self, data):
-		if ConsumerHTMLParser.a:
+		if self.a:
 			tmp = data.split('-')[0]
-			if not tmp in ConsumerHTMLParser.consumers:
-				ConsumerHTMLParser.consumers.append( tmp )
-			ConsumerHTMLParser.a = False
-			ConsumerHTMLParser.td = False
-			ConsumerHTMLParser.tr = False
+			if not tmp in self.consumers:
+				self.consumers.append( tmp )
+			self.a = False
+			self.td = False
+			self.tr = False
 	
 	def get_consumers(self):
-		return ConsumerHTMLParser.consumers
+		return self.consumers
 	
 
 class ActivemqMonitor():
