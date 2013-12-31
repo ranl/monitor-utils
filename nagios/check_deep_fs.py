@@ -12,8 +12,8 @@ import os.path
 def parse_args():
     parser = OptionParser()
     parser.add_option('-p', '--path', dest='path', type='string', help='absolute path to check', metavar="FILE")
-    parser.add_option('-w', '--warning', dest='warning', type='int', help='critical threshold')
-    parser.add_option('-c', '--critical', dest='critical', type='int', help='warning threshold')
+    parser.add_option('-w', '--warning', dest='warning', type='int', help='free disk space critical threshold (in %)')
+    parser.add_option('-c', '--critical', dest='critical', type='int', help='free disk space warning threshold (in %)')
     (opts, args) = parser.parse_args()
 
     if opts.path is None:
