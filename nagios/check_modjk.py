@@ -7,6 +7,7 @@ requires
   - Python >= 2.6
   - status worker enable
 '''
+from numpy.core.memmap import memmap
 
 from optparse import OptionParser
 import urllib2
@@ -19,13 +20,14 @@ EXIT_CODE = {
     'UNKNOWN': 3,
 }
 
-def prepareOpts():
+
+def prepare_opts():
     '''
     Parse option from the shell
     '''
     
     def help():
-        print 'How many workers are in a non-OK state'
+        print 'How many workers are in OK state and Activated'
         print ''
         parser.print_help()
     
@@ -44,33 +46,37 @@ def prepareOpts():
     # Input Validation
     if not opts.url:
         err('missing Modjk Status http url')
-    if opts.warning > opts.critical:
-        err('-w can not be greater than -c')
+    if opts.warning < opts.critical:
+        err('-w can not be smaller than -c')
     if opts.warning < 0 or opts.critical < 0:
         err('-w and -c must be a positive number')
     
     return opts
 
-def getErrorWorkers(url, timeout):
+
+def get_error_workers(url, timeout):
     '''
     Query the Modjk status worker for bad workers
     '''
-    
-    ret = []
-    response = urllib2.urlopen(url+'?command=list&mime=prop', timeout=timeout).read()
-    for line in re.findall( r'worker\..*\.state=.*', response, re.M):
-        if not line.endswith('OK'):
-            ret.append(
-                line.split('.',1)[1].split('.',1)[0]
+
+    get_node = re.compile(r'Member: name=(.*) type=')
+    ret = set([])
+    total = 0
+    response = urllib2.urlopen(url+'?mime=txt', timeout=timeout).read()
+    for member in re.findall( r'^Member: .*', response, re.M):
+        total += 1
+        if 'state=OK' in member and 'activation=ACT' in member:
+            ret.add(
+                get_node.search(member).groups(0)[0]
             )
-    return ret
+    return (list(ret), total)
 
 
 if __name__ == '__main__':
-    opts = prepareOpts()
+    opts = prepare_opts()
     
     try:
-        errorWorkers = getErrorWorkers(
+        (errorWorkers, total) = get_error_workers(
             opts.url, opts.timeout
         )
     except urllib2.URLError as e:
@@ -79,14 +85,14 @@ if __name__ == '__main__':
     
     count = len(errorWorkers)
     state = ''
-    if count < opts.warning:
+    if count > opts.warning:
         state = 'OK'
-    elif count >= opts.warning and count < opts.critical:
+    elif opts.warning >= count > opts.critical:
         state = 'WARN'
     else:
         state = 'CRIT'
     
-    print '{0}: {1} workers are in Err state {2}'.format(
-        state, count, ','.join(errorWorkers)
+    print '{0}: {1}/{2} workers are OK and ACT {3}'.format(
+        state, count, total, ','.join(errorWorkers)
     )
     exit(EXIT_CODE[state])
