@@ -6,7 +6,7 @@ Monitor a mount on the filesystem and all of it sub mounts
 
 from optparse import OptionParser
 import subprocess
-import os
+import os.path
 
 
 def parse_args():
@@ -43,7 +43,7 @@ def get_mount_point(loc):
     Get the mount point of the path
     '''
 
-    mount = os.readlink(os.path.abspath(loc))
+    mount = os.path.realpath(os.path.abspath(loc))
     while not os.path.ismount(mount):
         mount = os.path.dirname(mount)
 
