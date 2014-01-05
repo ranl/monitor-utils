@@ -150,7 +150,7 @@ class SolrMonitor():
         else:
             return {
                 'exit': EXIT_CODE['CRIT'],
-                'msg': 'OK: Solr Ping is down'
+                'msg': 'CRIT: Solr Ping is down'
             }
     
     def _eval_dataimportDocumentsProcessed(self, res, opts):
