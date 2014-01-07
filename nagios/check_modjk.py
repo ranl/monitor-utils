@@ -7,7 +7,6 @@ requires
   - Python >= 2.6
   - status worker enable
 '''
-from numpy.core.memmap import memmap
 
 from optparse import OptionParser
 import urllib2
