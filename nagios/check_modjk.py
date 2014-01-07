@@ -84,7 +84,7 @@ if __name__ == '__main__':
     
     count = len(errorWorkers)
     state = ''
-    if count > opts.warning:
+    if count > opts.warning or (opts.warning == 1 and count == 1):
         state = 'OK'
     elif opts.warning >= count > opts.critical:
         state = 'WARN'
