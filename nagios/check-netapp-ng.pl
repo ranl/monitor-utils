@@ -368,7 +368,6 @@ if("$opt{'check_type'}" eq "TEMP") {
 		$shelf{'VoltUnderWarn'} = _get_oid_value($snmp_session,"$snmpEnclTableVoltUnderWarn.$oid");
 		
 		foreach my $subkey ( keys %shelf) {
-			print "$subkey\t$shelf{$subkey}\n";
 			if($shelf{$subkey}) { push(@shelf_err,"$addr $subkey,") }
 		}
 		if($#shelf_err != -1) {
