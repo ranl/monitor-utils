@@ -120,7 +120,7 @@ sub FSyntaxError($) {
 	 PS            - Power Supply Fail
 	 CPULOAD       - CPU Load (-w -c)
 	 NVRAM         - NVram Battery Status
-	 DISKUSED      - Vol Usage Precentage (-w -c --vol)
+	 DISKUSED      - Vol Usage Percentage (-w -c --vol)
 	 SNAPSHOT      - Snapshot Config (-e volname,volname2,volname3)
 	 SHELF         - Shelf Health
 	 NDMPSESSIONS  - Number of ndmp sessions (-w -c)
