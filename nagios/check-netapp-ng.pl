@@ -120,7 +120,7 @@ sub FSyntaxError($) {
 	 PS            - Power Supply Fail
 	 CPULOAD       - CPU Load (-w -c)
 	 NVRAM         - NVram Battery Status
-	 DISKUSED      - Vol Usage Precentage (-w -c --vol)
+	 DISKUSED      - Vol Usage Percentage (-w -c --vol)
 	 SNAPSHOT      - Snapshot Config (-e volname,volname2,volname3)
 	 SHELF         - Shelf Health
 	 NDMPSESSIONS  - Number of ndmp sessions (-w -c)
@@ -368,7 +368,6 @@ if("$opt{'check_type'}" eq "TEMP") {
 		$shelf{'VoltUnderWarn'} = _get_oid_value($snmp_session,"$snmpEnclTableVoltUnderWarn.$oid");
 		
 		foreach my $subkey ( keys %shelf) {
-			print "$subkey\t$shelf{$subkey}\n";
 			if($shelf{$subkey}) { push(@shelf_err,"$addr $subkey,") }
 		}
 		if($#shelf_err != -1) {
