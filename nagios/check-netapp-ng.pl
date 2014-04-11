@@ -12,7 +12,7 @@
 #####################################
 
 use strict;
-use lib '/omd/versions/1.10/lib/nagios/plugins/';
+use lib '/path/to/nagios/libexec';
 use utils qw($TIMEOUT %ERRORS);
 use Net::SNMP;
 use Getopt::Long;
