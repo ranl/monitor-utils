@@ -12,7 +12,7 @@
 #####################################
 
 use strict;
-use lib "/path/to/nagios/libexec";
+use lib '/omd/versions/1.10/lib/nagios/plugins/';
 use utils qw($TIMEOUT %ERRORS);
 use Net::SNMP;
 use Getopt::Long;
@@ -96,7 +96,7 @@ my %EcnlStatusIndex = (
 sub _create_session(@) {
 	my ($server, $comm) = @_;
 	my $version = 1;
-	my ($sess, $err) = Net::SNMP->session( -hostname => $server, -version => $version, -community => $comm);
+	my ($sess, $err) = Net::SNMP->session( -hostname => $server, -version => $version, -community => $comm, -timeout => 60);
 	if (!defined($sess)) {
 		print "Can't create SNMP session to $server\n";
 		exit(1);
@@ -166,6 +166,7 @@ sub _clac_err_stat(@) {
 my %opt;
 $opt{'crit'} = 500;
 $opt{'warn'} = 500;
+$opt{'vol'} = [];
 my $result = GetOptions(\%opt,
 						'filer|H=s',
 						'community|C=s',
@@ -180,8 +181,10 @@ FSyntaxError("Missing -H")  unless defined $opt{'filer'};
 FSyntaxError("Missing -C")  unless defined $opt{'community'};
 FSyntaxError("Missing -T")  unless defined $opt{'check_type'};
 if($opt{'vol'}) {
-	if($opt{'vol'} !~ /^\/.*\/$/) {
-		FSyntaxError("$opt{'vol'} format is /vol/volname/ !");
+	foreach(@{$opt{'vol'}}) {
+		if($_ !~ /^\/.*\/$/) {
+			FSyntaxError("'$_' not in format '/vol/<volname>/'!");
+		}
 	}
 }
 if($opt{'crit'} and $opt{'warn'}) {
@@ -252,16 +255,20 @@ if("$opt{'check_type'}" eq "TEMP") {
 	
 	my $r_vol_tbl = $snmp_session->get_table($snmp_netapp_volume_id_table_df_name);
 	foreach my $key ( keys %$r_vol_tbl) {
-		if("$$r_vol_tbl{$key}" eq "$opt{'vol'}") {
-			my @tmp_arr = split(/\./, $key);
-			my $oid = pop(@tmp_arr);
+		foreach(@{$opt{'vol'}}) {
+			if("$$r_vol_tbl{$key}" eq $_) {
+				my @tmp_arr = split(/\./, $key);
+				my $oid = pop(@tmp_arr);
 			
-			my $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used.$oid");
-			my $used_prec = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_prec.$oid");
+				my $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used.$oid");
+				my $used_prec = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_prec.$oid");
 			
-			($msg,$stat) = _clac_err_stat($used_prec,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
-			
-			$perf = "$$r_vol_tbl{$key}=$used\k";
+				my ($lmsg,$lstat) = _clac_err_stat($used_prec,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
+				$msg .= " $_ $lmsg";
+				$stat = $lstat if $lstat > $stat;
+	
+				$perf .= "$$r_vol_tbl{$key}=$used\k ";
+			}
 		}
 	}
 ### SNAPSHOT ###
