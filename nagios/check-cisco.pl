@@ -211,7 +211,7 @@ if($check_type =~ /^temp/) {
 			$msg = "Temperature: Warn - Temperature is $temp Celsius";
 		} elsif($temp >= $crit) {
 			$stat = 2;
-			$msg = "Temperature: CRIT - Tempeture is $temp Celsius";
+			$msg = "Temperature: CRIT - Temperature is $temp Celsius";
 		}
 		$perf = "temperature=$temp;$warn;$crit";
 	} else {
