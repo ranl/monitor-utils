@@ -205,10 +205,10 @@ if($check_type =~ /^temp/) {
 		}
 		if($temp <= $warn) {
 			$stat = 0;
-			$msg = "Temperature: OK - Tempeture is $temp Celsius";
+			$msg = "Temperature: OK - Temperature is $temp Celsius";
 		}  elsif($temp > $warn and $temp < $crit) {
 			$stat = 1;
-			$msg = "Temperature: Warn - Tempeture is $temp Celsius";
+			$msg = "Temperature: Warn - Temperature is $temp Celsius";
 		} elsif($temp >= $crit) {
 			$stat = 2;
 			$msg = "Temperature: CRIT - Tempeture is $temp Celsius";
