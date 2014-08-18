@@ -793,6 +793,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 
 		foreach my $subkey ( keys %shelf) {
 		    if ( $shelf{$subkey} ne "" ) {
+		    	print "$subkey->$shelf{$subkey} ";
                         if ( "$subkey" eq "CurrentTemp" ) {
                                 $shelf{$subkey} =~ m/^([0-9]+)C.*$/;
                                 $perf_temp = "$perf_temp, temp_$shelf{'ShelfNumber'}=$1";
