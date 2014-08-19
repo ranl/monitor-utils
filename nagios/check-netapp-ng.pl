@@ -747,6 +747,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 } elsif ( ("$opt{'check_type'}" eq "SHELF") or ("$opt{'check_type'}" eq "SHELFINFO") ) {
 	my @errs;
 	my $r_shelf = $snmp_session->get_table($snmpEnclTableIndex);
+	my $perf_temp = "";
 	foreach my $key ( sort keys %$r_shelf) {
 		my @tmp_arr = split(/\./, $key);
 		my $oid = pop(@tmp_arr);
@@ -791,8 +792,13 @@ if("$opt{'check_type'}" eq "TEMP") {
 
 
 		foreach my $subkey ( keys %shelf) {
-		    if ( $shelf{$subkey} ne "" )
-		     { print "$subkey->$shelf{$subkey} "; } 
+		    if ( $shelf{$subkey} ne "" ) {
+		    	print "$subkey->$shelf{$subkey} ";
+                        if ( "$subkey" eq "CurrentTemp" ) {
+                                $shelf{$subkey} =~ m/^([0-9]+)C.*$/;
+                                $perf_temp = "$perf_temp, temp_$shelf{'ShelfNumber'}=$1";
+                        }
+		    }
 		    else
 		     { print "$subkey->"; print "None "; }
 			
@@ -813,7 +819,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 		$stat = $ERRORS{'OK'};
 		$msg = "OK: $opt{'check_type'} ok";
 		if ("$opt{'check_type'}" eq "SHELFINFO") 
-		{ $perf = "shelfinfo=0"; }
+		{ $perf = "shelfinfo=0$perf_temp"; }
 		else
 		{ $perf = "shelf=0"; }
 	} else {
@@ -823,7 +829,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 			$msg = "$msg $_";
 		}
 		if ("$opt{'check_type'}" eq "SHELFINFO") 
-		{ $perf = "shelfinfo=1"; }
+		{ $perf = "shelfinfo=1$perf_temp"; }
 		else
 		{ $perf = "shelf=1"; }
 	}
