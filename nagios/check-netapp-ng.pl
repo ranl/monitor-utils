@@ -669,7 +669,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 		$stat = $ERRORS{'CRITICAL'};
 		$msg = "CRIT: $opt{'check_type'} (".$diskMessage.") Disk Summary : Total->".$diskTotal." Active->".$diskActive." Spare->".$diskSpare." Failed ->".$diskFailed. " Reconstructing ->".$diskReconstructing;
 	}
-	$perf = "faileddisks=$check";
+	$perf = "faileddisks=$check total=$diskTotal active=$diskActive spare=$diskSpare reconstructing=$diskReconstructing";
 
 ### HA ###
 } elsif("$opt{'check_type'}" eq "HA") {
