@@ -21,6 +21,8 @@
 ## FAS2220
 ## FAS2240
 ## FAS3220
+## FA2050, NetApp Release 7.3.1.1
+## IBM System Storage N6240, Data ONTAP Release 8.1.4P4
 ##
 ## DISKSUMMARY|HA|CIFSSESSIONS|
 ## AUTOSUPPORTSTATUS|NFSOPS|
@@ -597,6 +599,10 @@ if("$opt{'check_type'}" eq "TEMP") {
 			$perf = "$$r_vol_tbl{$key}=$used\k";
 		}
 	}
+        if ($msg =~ /^$/) {
+                $stat = $ERRORS{'WARNING'};
+                $msg = "WARN: Missing volume $opt{'vol'} !";
+        }                
 ### SNAPSHOT ###
 } elsif("$opt{'check_type'}" eq "SNAPSHOT") {
 	my @exc_list = split(',',$opt{'exclude'});
@@ -665,7 +671,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 		$stat = $ERRORS{'CRITICAL'};
 		$msg = "CRIT: $opt{'check_type'} (".$diskMessage.") Disk Summary : Total->".$diskTotal." Active->".$diskActive." Spare->".$diskSpare." Failed ->".$diskFailed. " Reconstructing ->".$diskReconstructing;
 	}
-	$perf = "faileddisks=$check";
+	$perf = "faileddisks=$check total=$diskTotal active=$diskActive spare=$diskSpare reconstructing=$diskReconstructing";
 
 ### HA ###
 } elsif("$opt{'check_type'}" eq "HA") {
@@ -704,6 +710,8 @@ if("$opt{'check_type'}" eq "TEMP") {
 } elsif("$opt{'check_type'}" eq "UPTIME") {
 	my $check = _get_oid_value($snmp_session,$snmpUpTime);
 	$msg = "$opt{'check_type'}: $check";
+	$check =~ m/^\s*(\d+)\s+days,\s+(\d+):(\d+):(\d+).*$/;
+	$perf = "uptime=" . ($1*86400 + $2*3600 + $3*60 + $4) . "s";
 ### CACHEAGE ###
 } elsif("$opt{'check_type'}" eq "CACHEAGE") {
 	my $check = _get_oid_value($snmp_session,$snmpCacheAge);
