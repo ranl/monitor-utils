@@ -708,6 +708,8 @@ if("$opt{'check_type'}" eq "TEMP") {
 } elsif("$opt{'check_type'}" eq "UPTIME") {
 	my $check = _get_oid_value($snmp_session,$snmpUpTime);
 	$msg = "$opt{'check_type'}: $check";
+	$check =~ m/^\s*(\d+)\s+days,\s+(\d+):(\d+):(\d+).*$/;
+	$perf = "uptime=" . ($1*86400 + $2*3600 + $3*60 + $4) . "s";
 ### CACHEAGE ###
 } elsif("$opt{'check_type'}" eq "CACHEAGE") {
 	my $check = _get_oid_value($snmp_session,$snmpCacheAge);
