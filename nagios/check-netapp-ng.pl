@@ -597,6 +597,10 @@ if("$opt{'check_type'}" eq "TEMP") {
 			$perf = "$$r_vol_tbl{$key}=$used\k";
 		}
 	}
+        if ($msg =~ /^$/) {
+                $stat = $ERRORS{'WARNING'};
+                $msg = "WARN: Missing volume $opt{'vol'} !";
+        }                
 ### SNAPSHOT ###
 } elsif("$opt{'check_type'}" eq "SNAPSHOT") {
 	my @exc_list = split(',',$opt{'exclude'});
