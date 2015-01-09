@@ -540,7 +540,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 } elsif("$opt{'check_type'}" eq "CPULOAD") {
 	my $check = _get_oid_value($snmp_session,$snmpcpuBusyTimePerCent);
 	($msg,$stat) = _clac_err_stat($check,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
-	$perf = "cpuload=$check\percent";
+	$perf = "cpuload=$check\%";
 ### NFSOPS ###
 } elsif("$opt{'check_type'}" eq "NFSOPS") {
 	my $low_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowNfsOps);
@@ -554,7 +554,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 	my $check=$nfsops_per_seconds;
 
 	($msg,$stat) = _clac_absolute_err_stat($check,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
-	$perf = "nfsops=$check\ nfs ops/sec";
+	$perf = "nfsops=$check";
 ### CIFSOPS ###
 } elsif("$opt{'check_type'}" eq "CIFSOPS") {
 	my $low_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowCifsOps);
@@ -568,7 +568,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 	my $check=$cifsops_per_seconds;
 
 	($msg,$stat) = _clac_absolute_err_stat($check,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
-	$perf = "cifsops=$check\ cifs ops/sec";
+	$perf = "cifsops=$check";
 ### NVRAM ###
 } elsif("$opt{'check_type'}" eq "NVRAM") {
 	my $check = _get_oid_value($snmp_session,$snmpnvramBatteryStatus);
