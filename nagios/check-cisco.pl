@@ -121,7 +121,7 @@ sub FSyntaxError {
 	print "\tint - Interface Operation Stat (use with -i or -o)\n";
 	print "-w = Warning Value\n";
 	print "-c = Critical Value\n";
-	print "-d = number of days that th ethernet interface hasn't change state, default is 14 (only for -t freeint)\n";
+	print "-d = number of days that the ethernet interface hasn't change state, default is 14 (only for -t freeint)\n";
 	print "-i = Interface Name (only for -t int)\n";
 	print "-o = Interface OID (only for -t int)\n";
 	exit(3);
