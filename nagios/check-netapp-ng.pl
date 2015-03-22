@@ -330,6 +330,27 @@ sub _clac_generic_err_stat(@) {
 	return($r_msg,$r_stat);
 }
 
+sub _reverse_clac_generic_err_stat(@) {
+	my $value = shift;
+	my $value_type = shift;
+	my $tmp_warn = shift;
+	my $tmp_crit = shift;
+	my $scale = shift;
+	my $r_msg;
+	my $r_stat;
+	if($value >= $tmp_warn) {
+		$r_stat = $ERRORS{'OK'};
+		$r_msg = "OK: $value_type $value $scale";
+	}  elsif($value < $tmp_warn and $value > $tmp_crit) {
+		$r_stat = $ERRORS{'WARNING'};
+		$r_msg = "WARN: $value_type $value $scale";
+	} elsif($value <= $tmp_crit) {
+		$r_stat = $ERRORS{'CRITICAL'};
+		$r_msg = "CRIT: $value_type $value $scale";
+	}
+	return($r_msg,$r_stat);
+}
+
 
 sub _clac_err_stat(@) {
 	my $value = shift;
@@ -370,7 +391,7 @@ sub _clac_minutes_err_stat(@) {
 	my $tmp_crit = shift;
 	my $r_msg;
 	my $r_stat;
-	($r_msg,$r_stat) = _clac_generic_err_stat($value,$value_type,$tmp_warn,$tmp_crit,"minutes");
+	($r_msg,$r_stat) = _reverse_clac_generic_err_stat($value,$value_type,$tmp_warn,$tmp_crit,"minutes");
 	return($r_msg,$r_stat);
 }
 
@@ -400,9 +421,15 @@ if($opt{'vol'}) {
 	}
 }
 if($opt{'crit'} and $opt{'warn'}) {
+    if("$opt{'check_type'}" eq "CACHEAGE") {
+	if($opt{'crit'} > $opt{'warn'}) {
+		FSyntaxError("Critical can't be larger then Warning: $opt{'crit'} > $opt{'warn'}");
+	}
+    } else {
 	if($opt{'warn'} > $opt{'crit'}) {
 		FSyntaxError("Warning can't be larger then Critical: $opt{'warn'} > $opt{'crit'}");
 	}
+    }
 }
 
 
@@ -583,7 +610,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 ### DISKUSED ###
 } elsif("$opt{'check_type'}" eq "DISKUSED") {
 
-	FSyntaxError("Missing -vol")  unless defined $opt{'vol'};
+	FSyntaxError("Missing --vol")  unless defined $opt{'vol'};
 
 	my $r_vol_tbl = $snmp_session->get_table($snmp_netapp_volume_id_table_df_name);
 	foreach my $key ( keys %$r_vol_tbl) {
