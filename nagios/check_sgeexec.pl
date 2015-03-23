@@ -18,7 +18,7 @@ sub FSyntaxError {
 	print "Syntax Error !\n";
 	print "$0 [s|q] [absolute path to settings.sh] [hostname] [queue name]\n";
 	print "s = Status of the exec hosts: check for Error status, and if he has a queue instance enabled\n";
-	print "q = check via qrsh is the host accepts jobs (you can configure a queue for all the exec hosts with access list only to nagios for the sake of this check)\n\n"
+	print "q = check via qrsh is the host accepts jobs (you can configure a queue for all the exec hosts with access list only to nagios for the sake of this check)\n\n";
 	print "Example:\n";
 	print "$0 q /path/to/settings.sh quad-8g1 nagios.q\n";
 	print "$0 s /path/to/settings.sh quad-8g1 [queues,to,exclude]\n";
