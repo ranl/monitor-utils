@@ -85,6 +85,7 @@ my $snmpHostUptime;
 
 
 ### SNMP OIDs
+### You can browse at http://www.oidview.com/mibs/789/NETAPP-MIB.html
 ###############
 my $snmpSysUpTime = '.1.3.6.1.2.1.1.3.0';
 my $snmpFailedFanCount = '.1.3.6.1.4.1.789.1.2.4.2.0';
@@ -133,7 +134,10 @@ my $snmp_netapp_volume_id_table_df_total = "$snmp_netapp_volume_id_table_df.3";
 my $snmp_netapp_volume_id_table_df_used = "$snmp_netapp_volume_id_table_df.4";
 my $snmp_netapp_volume_id_table_df_free = "$snmp_netapp_volume_id_table_df.5";
 my $snmp_netapp_volume_id_table_df_used_prec = "$snmp_netapp_volume_id_table_df.6";
-
+# 64bit values for SNMP v2c
+my $snmp_netapp_volume_id_table_df64_total = "$snmp_netapp_volume_id_table_df.29";
+my $snmp_netapp_volume_id_table_df64_used = "$snmp_netapp_volume_id_table_df.30";
+my $snmp_netapp_volume_id_table_df64_free = "$snmp_netapp_volume_id_table_df.31";
 
 my $snmp_netapp_enclNumber = '.1.3.6.1.4.1.789.1.21.1.1';
 my $snmpEnclTable = '.1.3.6.1.4.1.789.1.21.1.2.1';
@@ -294,14 +298,14 @@ $err
        PS                     - Power Supply Fail
        CPULOAD                - CPU Load (-w -c)
        NVRAM                  - NVram Battery Status
-       DISKUSED               - Vol Usage Precentage (-w -c -v)
+       DISKUSED               - Vol Usage Percentage (-w -c -v), for big volumes (>4GB) use -V 2c
        SNAPSHOT               - Snapshot Config (-e volname,volname2,volname3)
        SHELF                  - Shelf Health
        SHELFINFO              - Shelf Model & Temperature Information
        NFSOPS                 - Nfs Ops per seconds (-w -c)
        CIFSOPS                - Cifs Ops per seconds (-w -c)
-       ISCSIOPS               - iSCSI Ops per seconds, sets -V 2c  (-w -c)
-       FCPOPS                 - FibreChannel Ops per seconds, sets -V 2c (-w -c)
+       ISCSIOPS               - iSCSI Ops per seconds, using -V 2c automatic (-w -c)
+       FCPOPS                 - FibreChannel Ops per seconds, using -V 2c automatic (-w -c)
        NDMPSESSIONS           - Number of ndmp sessions (-w -c)
        CIFSSESSIONS           - Number of cifs sessions (-w -c)
        GLOBALSTATUS           - Global Status of the filer
@@ -310,7 +314,7 @@ $err
        DISKSUMMARY            - Status of disks
        FAILEDDISK             - Number of failed disks
        UPTIME                 - Only show\'s uptime
-       CACHEAGE               - Cache Age
+       CACHEAGE               - Cache Age (-w -c)
 
    Examples:
       $script_name -H netapp.mydomain -C public -T UPTIME
@@ -319,8 +323,8 @@ $err
       $script_name -H netapp.mydomain -C public -T FCOPS -I
         CRIT: FCPOPS 1130  | fcpops=1130
 
-      $script_name -H netapp.mydomain -C public -T DISKUSED -v /vol/vol0/ -w 90 -c 95
-        OK: DISKUSED 5% | /vol/vol0/=8639316k
+      $script_name -H netapp.mydomain -C public -T DISKUSED -v /vol/data/ -w 90 -c 95 -V 2c
+        OK: DISKUSED 79% | /vol/data/=8104595240k
 
       $script_name -H netapp.mydomain -C public -T GLOBALSTATUS
         CRIT: GLOBALSTATUS nonCritical 4 Disk on adapter 1a, shelf 1, bay 9, failed.   | globalstatus=4
@@ -650,8 +654,13 @@ if("$opt{'check_type'}" eq "TEMP") {
 		if("$$r_vol_tbl{$key}" eq "$opt{'vol'}") {
 			my @tmp_arr = split(/\./, $key);
 			my $oid = pop(@tmp_arr);
-
-			my $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used.$oid");
+                        my $used = "";
+			if ($opt{'version'} eq '2c') {
+                                $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df64_used.$oid");
+                        }
+                        else {
+                                $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used.$oid");
+                        }
 			my $used_prec = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_prec.$oid");
 
 			($msg,$stat) = _clac_err_stat($used_prec,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
