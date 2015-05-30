@@ -259,8 +259,8 @@ my %EcnlStatusIndex = (
 
 
 sub _create_session(@) {
-	my ($server, $comm, $version) = @_;
-	my ($sess, $err) = Net::SNMP->session( -hostname => $server, -version => $version, -community => $comm);
+	my ($server, $comm, $version, $timeout) = @_;
+	my ($sess, $err) = Net::SNMP->session( -hostname => $server, -version => $version, -community => $comm, -timeout => $timeout);
 	if (!defined($sess)) {
 		print "Can't create SNMP session to $server\n";
 		exit(1);
@@ -279,7 +279,8 @@ $err
        -H <IP or Hostname>    Ip/Dns Name of the Filer
        -C <community name>    SNMP Community Name for read
        -V <1|2c>              SNMP version (default 1)
-       -T <Check type>        Type of check, see bellow
+       -T <check type>        Type of check, see bellow
+       -t <seconds>           Timeout to SNMP session in seconds (default 5)
 
        -w <number>            Warning Value (default 500)
        -c <number>            Critical Value (default 500)
@@ -407,6 +408,7 @@ sub _clac_minutes_err_stat(@) {
 $opt{'crit'} = 500;
 $opt{'warn'} = 500;
 $opt{'version'} = 1;
+$opt{'timeout'} = 5;
 my $result = GetOptions(\%opt,
 						'filer|H=s',
 						'community|C=s',
@@ -417,6 +419,7 @@ my $result = GetOptions(\%opt,
 						'vol|v=s',
 						'exclude|e=s',
                                                 'inform|I',
+                                                'timeout|t=i',
 						);
 
 FSyntaxError("Missing -H")  unless defined $opt{'filer'};
@@ -452,7 +455,7 @@ if (!defined($counterFilePath)) {
 alarm($TIMEOUT);
 
 # Establish SNMP Session
-our $snmp_session = _create_session($opt{'filer'},$opt{'community'},$opt{'version'});
+our $snmp_session = _create_session($opt{'filer'},$opt{'community'},$opt{'version'},$opt{'timeout'});
 
 # setup counterFile now that we have host IP and check type
 $counterFile = $counterFilePath."/".$opt{'filer'}.".check-netapp-ng.$opt{'check_type'}.nagioscache";
