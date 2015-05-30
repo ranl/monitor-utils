@@ -669,7 +669,6 @@ if("$opt{'check_type'}" eq "TEMP") {
                                 my $used_high = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_high.$oid");
                                 my $used_low  = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_low.$oid");
                                 $used = _ulong64($used_high, $used_low);
-                                print "$used_high | $used_low | $used\n";
                         }
 			my $used_prec = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_prec.$oid");
 
