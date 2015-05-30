@@ -134,6 +134,8 @@ my $snmp_netapp_volume_id_table_df_total = "$snmp_netapp_volume_id_table_df.3";
 my $snmp_netapp_volume_id_table_df_used = "$snmp_netapp_volume_id_table_df.4";
 my $snmp_netapp_volume_id_table_df_free = "$snmp_netapp_volume_id_table_df.5";
 my $snmp_netapp_volume_id_table_df_used_prec = "$snmp_netapp_volume_id_table_df.6";
+my $snmp_netapp_volume_id_table_df_used_high = "$snmp_netapp_volume_id_table_df.16";
+my $snmp_netapp_volume_id_table_df_used_low = "$snmp_netapp_volume_id_table_df.17";
 # 64bit values for SNMP v2c
 my $snmp_netapp_volume_id_table_df64_total = "$snmp_netapp_volume_id_table_df.29";
 my $snmp_netapp_volume_id_table_df64_used = "$snmp_netapp_volume_id_table_df.30";
@@ -298,7 +300,7 @@ $err
        PS                     - Power Supply Fail
        CPULOAD                - CPU Load (-w -c)
        NVRAM                  - NVram Battery Status
-       DISKUSED               - Vol Usage Percentage (-w -c -v), for big volumes (>4GB) use -V 2c
+       DISKUSED               - Vol Usage Percentage (-w -c -v)
        SNAPSHOT               - Snapshot Config (-e volname,volname2,volname3)
        SHELF                  - Shelf Health
        SHELFINFO              - Shelf Model & Temperature Information
@@ -321,7 +323,7 @@ $err
         UPTIME: 2 days, 23:03:21.09 | uptime=255801s
 
       $script_name -H netapp.mydomain -C public -T FCOPS -I
-        CRIT: FCPOPS 1130  | fcpops=1130
+        OK: FCPOPS 1130  | fcpops=1130
 
       $script_name -H netapp.mydomain -C public -T DISKUSED -v /vol/data/ -w 90 -c 95 -V 2c
         OK: DISKUSED 79% | /vol/data/=8104595240k
@@ -405,6 +407,19 @@ sub _clac_minutes_err_stat(@) {
 	return($r_msg,$r_stat);
 }
 
+sub _ulong64(@) {
+        my $high = shift;
+        my $low = shift;
+        if ($low < 0) { 
+                $low = $low & 0x00000000FFFFFFFF; 
+                $low = $low | 0x0000000080000000; 
+        } 
+        if ($high < 0) { 
+                $high = $high & 0x00000000FFFFFFFF; 
+                $high = $high | 0x0000000080000000; 
+        } 
+        return ($high<<32)|$low; 
+}
 
 
 ### Gather input from user
@@ -490,17 +505,13 @@ if (("$opt{'check_type'}" eq "CIFSOPS") or ("$opt{'check_type'}" eq "NFSOPS") or
 
                 my $low_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowNfsOps);
                 my $high_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighNfsOps);
-
-                my $temp_high_ops = $high_nfs_ops << 32;
-                my $total_nfs_ops = $temp_high_ops | $low_nfs_ops;
+                my $total_nfs_ops = _ulong64($high_nfs_ops, $low_nfs_ops);
 
                 print FILE "$total_nfs_ops\n";
 
                 my $low_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowCifsOps);
                 my $high_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighCifsOps);
-
-                my $temp_high_ops = $high_cifs_ops << 32;
-                my $total_cifs_ops = $temp_high_ops | $low_cifs_ops;
+                my $total_cifs_ops = _ulong64($high_cifs_ops, $low_cifs_ops);
 
                 print FILE "$total_cifs_ops\n";
 
@@ -589,10 +600,8 @@ if("$opt{'check_type'}" eq "TEMP") {
 } elsif("$opt{'check_type'}" eq "NFSOPS") {
 	my $low_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowNfsOps);
 	my $high_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighNfsOps);
+        my $total_nfs_ops = _ulong64($high_nfs_ops,$low_nfs_ops);        
 	
-	my $temp_high_ops = $high_nfs_ops << 32;
-	my $total_nfs_ops = $temp_high_ops | $low_nfs_ops;
-
 	my $nfsops_per_seconds=floor ( ($total_nfs_ops-$fileNfsOps)/$elapsedtime );
 
 	my $check=$nfsops_per_seconds;
@@ -603,9 +612,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 } elsif("$opt{'check_type'}" eq "CIFSOPS") {
 	my $low_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowCifsOps);
 	my $high_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighCifsOps);
-	
-	my $temp_high_ops = $high_cifs_ops << 32;
-	my $total_cifs_ops = $temp_high_ops | $low_cifs_ops;
+        my $total_cifs_ops = _ulong64($high_cifs_ops,$low_cifs_ops);
 
 	my $cifsops_per_seconds=floor ( ($total_cifs_ops-$fileCifsOps)/$elapsedtime );
 
@@ -659,7 +666,10 @@ if("$opt{'check_type'}" eq "TEMP") {
                                 $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df64_used.$oid");
                         }
                         else {
-                                $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used.$oid");
+                                my $used_high = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_high.$oid");
+                                my $used_low  = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_low.$oid");
+                                $used = _ulong64($used_high, $used_low);
+                                print "$used_high | $used_low | $used\n";
                         }
 			my $used_prec = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_prec.$oid");
 
