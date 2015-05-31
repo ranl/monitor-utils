@@ -79,7 +79,25 @@ my $fileHostUptime;
 my $fileNfsOps;
 my $fileCifsOps;
 my $fileIscsiOps;
+my $fileIscsi64ReadBytes;
+my $fileIscsi64WriteBytes;
 my $fileFcpOps;
+my $fileFcp64ReadBytes;
+my $fileFcp64WriteBytes;
+my $fileDisk64ReadBytes;
+my $fileDisk64WriteBytes;
+
+# performance variables from SNMP
+my $total_nfs_ops;
+my $total_cifs_ops;
+my $total_disk_read;
+my $total_disk_write;
+my $blocks_iscsi_ops;
+my $blocks_iscsi_read;
+my $blocks_iscsi_write;
+my $blocks_fcp_ops;
+my $blocks_fcp_read;
+my $blocks_fcp_write;
 
 my $snmpHostUptime;
 
@@ -165,15 +183,21 @@ my $snmpEnclTableVoltUnderFail = "$snmpEnclTable.38";
 my $snmpEnclTableVoltUnderWarn = "$snmpEnclTable.39";
 
 
-my $snmp_netapp_miscHighNfsOps = '.1.3.6.1.4.1.789.1.2.2.5.0';
-my $snmp_netapp_miscLowNfsOps = '.1.3.6.1.4.1.789.1.2.2.6.0';
-
-my $snmp_netapp_miscHighCifsOps = '.1.3.6.1.4.1.789.1.2.2.7.0';
-my $snmp_netapp_miscLowCifsOps = '.1.3.6.1.4.1.789.1.2.2.8.0';
+my $snmp_netapp_misc = '1.3.6.1.4.1.789.1.2.2';
+my $snmp_netapp_miscHighNfsOps = "$snmp_netapp_misc.5.0";
+my $snmp_netapp_miscLowNfsOps = "$snmp_netapp_misc.6.0";
+my $snmp_netapp_miscHighCifsOps = "$snmp_netapp_misc.7.0";
+my $snmp_netapp_miscLowCifsOps = "$snmp_netapp_misc.8.0";
+my $snmp_netapp_misc64DiskReadBytes = "$snmp_netapp_misc.32.0";
+my $snmp_netapp_misc64DiskWriteBytes = "$snmp_netapp_misc.33.0";
 
 my $snmp_netapp_blocks = '.1.3.6.1.4.1.789.1.17';
 my $snmp_netapp_blocks_iscsi64Ops = "$snmp_netapp_blocks.24.0";
+my $snmp_netapp_blocks_iscsi64ReadBytes = "$snmp_netapp_blocks.22.0";
+my $snmp_netapp_blocks_iscsi64WriteBytes = "$snmp_netapp_blocks.23.0";
 my $snmp_netapp_blocks_fcp64Ops = "$snmp_netapp_blocks.25.0";
+my $snmp_netapp_blocks_fcp64ReadBytes = "$snmp_netapp_blocks.20.0";
+my $snmp_netapp_blocks_fcp64WriteBytes = "$snmp_netapp_blocks.21.0";
 
 # SNMP Status Codes
 my %nvramBatteryStatus = (
@@ -307,8 +331,8 @@ This is $script_name in version $script_version.
     SHELFINFO         - Shelf Model & Temperature Information
     NFSOPS            - Nfs Ops per seconds (-w -c)
     CIFSOPS           - Cifs Ops per seconds (-w -c)
-    ISCSIOPS          - iSCSI Ops per seconds, using SNMP version 2c (-w -c)
-    FCPOPS            - FibreChannel Ops per seconds, using SNMP version 2c (-w -c)
+    ISCSIOPS          - iSCSI Ops per seconds, collect read/write performance data, using SNMPv2c (-w -c)
+    FCPOPS            - FibreChannel Ops per seconds, collect read/write performance data, using SNMPv2c (-w -c)
     NDMPSESSIONS      - Number of ndmp sessions (-w -c)
     CIFSSESSIONS      - Number of cifs sessions (-w -c)
     GLOBALSTATUS      - Global Status of the filer
@@ -479,21 +503,32 @@ our $snmp_session = _create_session($opt{'filer'},$opt{'community'},$opt{'versio
 # setup counterFile now that we have host IP and check type
 $counterFile = $counterFilePath."/".$opt{'filer'}.".check-netapp-ng.$opt{'check_type'}.nagioscache";
 
-$snmpHostUptime =  _get_oid_value($snmp_session,$snmpSysUpTime);
-
 
 # READ AND UPDATE CACHE FOR SPECIFIC TESTS FROM FILE
 if (("$opt{'check_type'}" eq "CIFSOPS") or ("$opt{'check_type'}" eq "NFSOPS") or ("$opt{'check_type'}" eq "ISCSIOPS") or ("$opt{'check_type'}" eq "FCPOPS")) {
+        $snmpHostUptime =  _get_oid_value($snmp_session,$snmpSysUpTime);
 
         # READ CACHE DATA FROM FILE IF IT EXISTS
         if (-e $counterFile) {
                 open(FILE, "$counterFile");
                 chomp($fileRuntime = <FILE>);
                 chomp($fileHostUptime = <FILE>);
-                chomp($fileNfsOps = <FILE>);
-                chomp($fileCifsOps = <FILE>);
-                chomp($fileIscsiOps = <FILE>);
-                chomp($fileFcpOps = <FILE>);
+                chomp($fileNfsOps = <FILE>) if $opt{'check_type'} eq 'NFSOPS';
+                chomp($fileCifsOps = <FILE>) if $opt{'check_type'} eq 'CIFSOPS';
+                if ($opt{'check_type'} eq 'ISCSIOPS') {
+                        chomp($fileIscsiOps = <FILE>);
+                        chomp($fileIscsi64ReadBytes = <FILE>);
+                        chomp($fileIscsi64WriteBytes = <FILE>);
+                }
+                if ($opt{'check_type'} eq 'FCPOPS') {
+                        chomp($fileFcpOps = <FILE>);
+                        chomp($fileFcp64ReadBytes = <FILE>);
+                        chomp($fileFcp64WriteBytes = <FILE>);
+                }
+                if ( ($opt{'check_type'} eq 'ISCSIOPS') or ($opt{'check_type'} eq 'FCPOPS') ) {
+                        chomp($fileDisk64ReadBytes = <FILE>);
+                        chomp($fileDisk64WriteBytes = <FILE>);
+                }
                 close(FILE);
         } # end if file exists
 
@@ -503,25 +538,39 @@ if (("$opt{'check_type'}" eq "CIFSOPS") or ("$opt{'check_type'}" eq "NFSOPS") or
                 print FILE "$runtime\n";
                 print FILE "$snmpHostUptime\n";
 
-                my $low_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowNfsOps);
-                my $high_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighNfsOps);
-                my $total_nfs_ops = _ulong64($high_nfs_ops, $low_nfs_ops);
+                if ($opt{'check_type'} eq 'NFSOPS') {
+                        my $low_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowNfsOps);
+                        my $high_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighNfsOps);
+                        $total_nfs_ops = _ulong64($high_nfs_ops, $low_nfs_ops);
+                        print FILE "$total_nfs_ops\n";
+                }
 
-                print FILE "$total_nfs_ops\n";
+                if ($opt{'check_type'} eq 'CIFSOPS') {
+                        my $low_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowCifsOps);
+                        my $high_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighCifsOps);
+                        $total_cifs_ops = _ulong64($high_cifs_ops, $low_cifs_ops);
+                        print FILE "$total_cifs_ops\n";
+                }
 
-                my $low_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowCifsOps);
-                my $high_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighCifsOps);
-                my $total_cifs_ops = _ulong64($high_cifs_ops, $low_cifs_ops);
+                if ($opt{'check_type'} eq 'ISCSIOPS') {
+                        $blocks_iscsi_ops = _get_oid_value($snmp_session,$snmp_netapp_blocks_iscsi64Ops);
+                        $blocks_iscsi_read = _get_oid_value($snmp_session,$snmp_netapp_blocks_iscsi64ReadBytes);
+                        $blocks_iscsi_write = _get_oid_value($snmp_session,$snmp_netapp_blocks_iscsi64WriteBytes);
+                        print FILE "$blocks_iscsi_ops\n$blocks_iscsi_read\n$blocks_iscsi_write\n";
+                }
 
-                print FILE "$total_cifs_ops\n";
+                if ($opt{'check_type'} eq 'FCPOPS') {
+                        $blocks_fcp_ops = _get_oid_value($snmp_session,$snmp_netapp_blocks_fcp64Ops);
+                        $blocks_fcp_read = _get_oid_value($snmp_session,$snmp_netapp_blocks_fcp64ReadBytes);
+                        $blocks_fcp_write = _get_oid_value($snmp_session,$snmp_netapp_blocks_fcp64WriteBytes);
+                        print FILE "$blocks_fcp_ops\n$blocks_fcp_read\n$blocks_fcp_write\n";
+                }
 
-                my $blocks_iscsi_ops = _get_oid_value($snmp_session,$snmp_netapp_blocks_iscsi64Ops);
-
-                print FILE "$blocks_iscsi_ops\n";
-
-                my $blocks_fcp_ops = _get_oid_value($snmp_session,$snmp_netapp_blocks_fcp64Ops);
-                print FILE "$blocks_fcp_ops\n";
-
+                if ( ($opt{'check_type'} eq 'ISCSIOPS') or ($opt{'check_type'} eq 'FCPOPS') ) {
+                        $total_disk_read = _get_oid_value($snmp_session,$snmp_netapp_misc64DiskReadBytes);
+                        $total_disk_write = _get_oid_value($snmp_session,$snmp_netapp_misc64DiskWriteBytes);
+                        print FILE "$total_disk_read\n$total_disk_write\n";
+                }
                 close(FILE);
             } else {
                 $state = "WARNING";
@@ -598,10 +647,6 @@ if("$opt{'check_type'}" eq "TEMP") {
 	$perf = "cpuload=$check\%";
 ### NFSOPS ###
 } elsif("$opt{'check_type'}" eq "NFSOPS") {
-	my $low_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowNfsOps);
-	my $high_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighNfsOps);
-        my $total_nfs_ops = _ulong64($high_nfs_ops,$low_nfs_ops);        
-	
 	my $nfsops_per_seconds=floor ( ($total_nfs_ops-$fileNfsOps)/$elapsedtime );
 
 	my $check=$nfsops_per_seconds;
@@ -610,10 +655,6 @@ if("$opt{'check_type'}" eq "TEMP") {
 	$perf = "nfsops=$check";
 ### CIFSOPS ###
 } elsif("$opt{'check_type'}" eq "CIFSOPS") {
-	my $low_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowCifsOps);
-	my $high_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighCifsOps);
-        my $total_cifs_ops = _ulong64($high_cifs_ops,$low_cifs_ops);
-
 	my $cifsops_per_seconds=floor ( ($total_cifs_ops-$fileCifsOps)/$elapsedtime );
 
 	my $check=$cifsops_per_seconds;
@@ -622,24 +663,29 @@ if("$opt{'check_type'}" eq "TEMP") {
 	$perf = "cifsops=$check";
 ### ISCSIOPS ###
 } elsif("$opt{'check_type'}" eq "ISCSIOPS") {
-	my $total_iscsi_ops = _get_oid_value($snmp_session,$snmp_netapp_blocks_iscsi64Ops);
-
-	my $iscsiops_per_seconds=floor ( ($total_iscsi_ops-$fileIscsiOps)/$elapsedtime );
-
+	my $iscsiops_per_seconds=floor ( ($blocks_iscsi_ops-$fileIscsiOps)/$elapsedtime );
+        my $iscsiread_per_seconds=floor ( ($blocks_iscsi_read-$fileIscsi64ReadBytes)/$elapsedtime );
+        my $iscsiwrite_per_seconds=floor ( ($blocks_iscsi_write-$fileIscsi64WriteBytes)/$elapsedtime );
+        my $diskread_per_seconds=floor ( ($total_disk_read-$fileDisk64ReadBytes)/$elapsedtime );
+        my $diskwrite_per_seconds=floor ( ($total_disk_write-$fileDisk64WriteBytes)/$elapsedtime );
 	my $check=$iscsiops_per_seconds;
 
 	($msg,$stat) = _clac_absolute_err_stat($check,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
-	$perf = "iscsiops=$check";
+        $msg = "$msg ops/s (iscsi read=$iscsiread_per_seconds B/s, iscsi write=$iscsiwrite_per_seconds B/s, disk read=$diskread_per_seconds B/s, disk write=$diskwrite_per_seconds B/s)";
+	$perf = "iscsiops=$check iscsiread=$iscsiread_per_seconds iscsiwrite=$iscsiwrite_per_seconds diskread=$diskread_per_seconds diskwrite=$diskwrite_per_seconds";
 ### FCPOPS ###
 } elsif("$opt{'check_type'}" eq "FCPOPS") {
-	my $total_fcp_ops = _get_oid_value($snmp_session,$snmp_netapp_blocks_fcp64Ops);
-
-	my $fcpops_per_seconds=floor ( ($total_fcp_ops-$fileFcpOps)/$elapsedtime );
+	my $fcpops_per_seconds=floor ( ($blocks_fcp_ops-$fileFcpOps)/$elapsedtime );
+        my $fcpread_per_seconds=floor ( ($blocks_fcp_read-$fileFcp64ReadBytes)/$elapsedtime );
+        my $fcpwrite_per_seconds=floor ( ($blocks_fcp_write-$fileFcp64WriteBytes)/$elapsedtime );
+        my $diskread_per_seconds=floor ( ($total_disk_read-$fileDisk64ReadBytes)/$elapsedtime );
+        my $diskwrite_per_seconds=floor ( ($total_disk_write-$fileDisk64WriteBytes)/$elapsedtime );
 
 	my $check=$fcpops_per_seconds;
 
 	($msg,$stat) = _clac_absolute_err_stat($check,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
-	$perf = "fcpops=$check";
+        $msg = "$msg ops/s (fcp read=$fcpread_per_seconds B/s, fcp write=$fcpwrite_per_seconds B/s, disk read=$diskread_per_seconds B/s, disk write=$diskwrite_per_seconds B/s))";
+	$perf = "fcpops=$check fcpread=$fcpread_per_seconds fcpwrite=$fcpwrite_per_seconds diskread=$diskread_per_seconds diskwrite=$diskwrite_per_seconds";
 ### NVRAM ###
 } elsif("$opt{'check_type'}" eq "NVRAM") {
 	my $check = _get_oid_value($snmp_session,$snmpnvramBatteryStatus);
@@ -921,7 +967,6 @@ if("$opt{'check_type'}" eq "TEMP") {
 } else {
 	FSyntaxError("$opt{'check_type'} invalid parameter !");
 }
-
 
 print "$msg | $perf\n";
 exit($stat);
