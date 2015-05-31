@@ -281,55 +281,53 @@ This is $script_name in version $script_version.
 
 $err
 
-   Syntax:
-       -H <IP or Hostname>    Ip/Dns Name of the Filer
-       -C <community name>    SNMP Community Name for read
-       -V <1|2c>              SNMP version (default 1)
-       -T <check type>        Type of check, see bellow
-       -t <seconds>           Timeout to SNMP session in seconds (default 5)
+  Syntax:
+    -H <IP or Hostname>     Ip/Dns Name of the Filer
+    -C <community name>     SNMP Community Name for read
+    -V <1|2c>               SNMP version (default 1), some checks run only 2c
+    -T <check type>         Type of check, see bellow
+    -t <seconds>            Timeout to SNMP session in seconds (default 5)
 
-       -w <number>            Warning Value (default 500)
-       -c <number>            Critical Value (default 500)
-       -v <volume_path>       Volume Name in format /vol/volname/
-       -e <vol1[,vol2[,...]]> Exclude volumes from snap check (SNAPSHOT)
-       -I                     Inform only, return OK every time (ignore -w and -c values)
+    -w <number>             Warning Value (default 500)
+    -c <number>             Critical Value (default 500)
+    -v <vol_path|aggr_name> Volume Name in format /vol/volname/ or aggregate name
+    -e <vol1[,vol2[,...]]>  Exclude volumes from snap check (SNAPSHOT)
+    -I                      Inform only, return OK every time (ignore -w and -c values)
+    -h                      This help
 
-   Available check types:
-       TEMP                   - Temperature
-       FAN                    - Fan Fail
-       PS                     - Power Supply Fail
-       CPULOAD                - CPU Load (-w -c)
-       NVRAM                  - NVram Battery Status
-       DISKUSED               - Vol Usage Percentage (-w -c -v)
-       SNAPSHOT               - Snapshot Config (-e volname,volname2,volname3)
-       SHELF                  - Shelf Health
-       SHELFINFO              - Shelf Model & Temperature Information
-       NFSOPS                 - Nfs Ops per seconds (-w -c)
-       CIFSOPS                - Cifs Ops per seconds (-w -c)
-       ISCSIOPS               - iSCSI Ops per seconds, using -V 2c automatic (-w -c)
-       FCPOPS                 - FibreChannel Ops per seconds, using -V 2c automatic (-w -c)
-       NDMPSESSIONS           - Number of ndmp sessions (-w -c)
-       CIFSSESSIONS           - Number of cifs sessions (-w -c)
-       GLOBALSTATUS           - Global Status of the filer
-       AUTOSUPPORTSTATUS      - Auto Support Status of the filer
-       HA                     - High Availability
-       DISKSUMMARY            - Status of disks
-       FAILEDDISK             - Number of failed disks
-       UPTIME                 - Only show\'s uptime
-       CACHEAGE               - Cache Age (-w -c)
+  Available check types:
+    TEMP              - Temperature
+    FAN               - Fan Fail
+    PS                - Power Supply Fail
+    CPULOAD           - CPU Load (-w -c)
+    NVRAM             - NVram Battery Status
+    DISKUSED          - Usage Percentage of volume or aggregate (-w -c -v)
+    SNAPSHOT          - Snapshot Config (-e volname,volname2,volname3)
+    SHELF             - Shelf Health
+    SHELFINFO         - Shelf Model & Temperature Information
+    NFSOPS            - Nfs Ops per seconds (-w -c)
+    CIFSOPS           - Cifs Ops per seconds (-w -c)
+    ISCSIOPS          - iSCSI Ops per seconds, using SNMP version 2c (-w -c)
+    FCPOPS            - FibreChannel Ops per seconds, using SNMP version 2c (-w -c)
+    NDMPSESSIONS      - Number of ndmp sessions (-w -c)
+    CIFSSESSIONS      - Number of cifs sessions (-w -c)
+    GLOBALSTATUS      - Global Status of the filer
+    AUTOSUPPORTSTATUS - Auto Support Status of the filer
+    HA                - High Availability
+    DISKSUMMARY       - Status of disks
+    FAILEDDISK        - Number of failed disks
+    UPTIME            - Only show\'s uptime
+    CACHEAGE          - Cache Age (-w -c)
 
-   Examples:
-      $script_name -H netapp.mydomain -C public -T UPTIME
-        UPTIME: 2 days, 23:03:21.09 | uptime=255801s
+  Examples:
+    $script_name -H netapp.mydomain -C public -T UPTIME
+      UPTIME: 2 days, 23:03:21.09 | uptime=255801s
 
-      $script_name -H netapp.mydomain -C public -T FCOPS -I
-        OK: FCPOPS 1130  | fcpops=1130
+    $script_name -H netapp.mydomain -C public -T DISKUSED -v /vol/data/ -w 90 -c 95 -V 2c
+      OK: DISKUSED 79% | /vol/data/=8104595240k
 
-      $script_name -H netapp.mydomain -C public -T DISKUSED -v /vol/data/ -w 90 -c 95 -V 2c
-        OK: DISKUSED 79% | /vol/data/=8104595240k
-
-      $script_name -H netapp.mydomain -C public -T GLOBALSTATUS
-        CRIT: GLOBALSTATUS nonCritical 4 Disk on adapter 1a, shelf 1, bay 9, failed.   | globalstatus=4
+    $script_name -H netapp.mydomain -C public -T GLOBALSTATUS
+      CRIT: GLOBALSTATUS nonCritical 4 Disk on adapter 1a, shelf 1, bay 9, failed.   | globalstatus=4
 
 EOU
 	exit($ERRORS{'UNKNOWN'});
@@ -439,14 +437,16 @@ my $result = GetOptions(\%opt,
 						'exclude|e=s',
                                                 'inform|I',
                                                 'timeout|t=i',
+                                                "help|h",
 						);
 
+FSyntaxError("") if defined $opt{'help'};
 FSyntaxError("Missing -H")  unless defined $opt{'filer'};
 FSyntaxError("Missing -C")  unless defined $opt{'community'};
 FSyntaxError("Missing -T")  unless defined $opt{'check_type'};
 if($opt{'vol'}) {
-	if($opt{'vol'} !~ /^\/.*\/$/) {
-		FSyntaxError("$opt{'vol'} format is /vol/volname/ !");
+	if ( !( ($opt{'vol'} =~ m#^/vol/.*/$#) or ($opt{'vol'} =~ m#^[^/]*$#) ) )  {
+		FSyntaxError("$opt{'vol'} format is /vol/volname/ or 'aggregate_name' !");
 	}
 }
 if($opt{'crit'} and $opt{'warn'}) {
@@ -679,7 +679,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 	}
         if ($msg =~ /^$/) {
                 $stat = $ERRORS{'WARNING'};
-                $msg = "WARN: Missing volume $opt{'vol'} !";
+                $msg = "WARN: Missing volume path or aggregate name '$opt{'vol'}' !";
         }                
 ### SNAPSHOT ###
 } elsif("$opt{'check_type'}" eq "SNAPSHOT") {
