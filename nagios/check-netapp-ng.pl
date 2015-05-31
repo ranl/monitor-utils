@@ -277,9 +277,9 @@ sub _create_session(@) {
 sub FSyntaxError($) {
 	my $err = shift;
 	print <<EOU;
-This is $script_name in version $script_version.
-
 $err
+
+This is $script_name in version $script_version.
 
   Syntax:
     -H <IP or Hostname>     Ip/Dns Name of the Filer
