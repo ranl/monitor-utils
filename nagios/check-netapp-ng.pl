@@ -306,15 +306,16 @@ $err
 This is $script_name in version $script_version.
 
   Syntax:
-    -H <IP or Hostname>     Ip/Dns Name of the Filer
-    -C <community name>     SNMP Community Name for read
+    -H <IP_or_Hostname>     Ip/Dns Name of the Filer
+    -C <community_name>     SNMP Community Name for read
     -V <1|2c>               SNMP version (default 1), some checks run only 2c
-    -T <check type>         Type of check, see bellow
+    -T <check_type>         Type of check, see bellow
     -t <seconds>            Timeout to SNMP session in seconds (default 5)
     -w <number>             Warning Value (default 500)
     -c <number>             Critical Value (default 500)
     -v <vol_path|aggr_name> Volume Name in format /vol/volname/ 
                             or aggregate name (not available in 7.x ONTAP)
+                            For available values use any word, such as \'-v whatever\'
     -e <vol1[,vol2[,...]]>  Exclude volumes from snap check (SNAPSHOT)
     -I                      Inform only, return OK every time (ignore -w and -c values)
     -h                      This help
@@ -352,6 +353,9 @@ This is $script_name in version $script_version.
 
     $script_name -H netapp.mydomain -C public -T GLOBALSTATUS
       CRIT: GLOBALSTATUS nonCritical 4 Disk on adapter 1a, shelf 1, bay 9, failed.   | globalstatus=4
+        
+    $script_name -H netapp.mydomain -C public -T DISKUSED -v wtf
+      WARN: Unknown volume path or aggregate name 'wtf'. Available values: aggr_p1a_sas2_mirror /vol/vol0/ /vol/esx/ /vol/xen_a/
 
 EOU
 	exit($ERRORS{'UNKNOWN'});
@@ -470,7 +474,7 @@ FSyntaxError("Missing -C")  unless defined $opt{'community'};
 FSyntaxError("Missing -T")  unless defined $opt{'check_type'};
 if($opt{'vol'}) {
 	if ( !( ($opt{'vol'} =~ m#^/vol/.*/$#) or ($opt{'vol'} =~ m#^[^/]*$#) ) )  {
-		FSyntaxError("$opt{'vol'} format is /vol/volname/ or 'aggregate_name' !");
+		FSyntaxError("$opt{'vol'} format is '/vol/volname/' or 'aggregate_name'! For listing available names use any text such as '-v whatever'.");
 	}
 }
 if($opt{'crit'} and $opt{'warn'}) {
@@ -725,7 +729,11 @@ if("$opt{'check_type'}" eq "TEMP") {
 	}
         if ($msg =~ /^$/) {
                 $stat = $ERRORS{'WARNING'};
-                $msg = "WARN: Missing volume path or aggregate name '$opt{'vol'}' !";
+                $msg = "WARN: Unknown volume path or aggregate name '$opt{'vol'}'. Available values:";
+                foreach my $key (sort keys %$r_vol_tbl) {
+                        next if $$r_vol_tbl{$key} =~ m#.*/\.snapshot$#;
+                        $msg .= " $$r_vol_tbl{$key}"
+                }
         }                
 ### SNAPSHOT ###
 } elsif("$opt{'check_type'}" eq "SNAPSHOT") {
@@ -968,5 +976,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 	FSyntaxError("$opt{'check_type'} invalid parameter !");
 }
 
-print "$msg | $perf\n";
+$perf ? print "$msg | $perf\n" : print "$msg\n";
+
 exit($stat);
+
