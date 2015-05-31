@@ -688,7 +688,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 	my $check=$fcpops_per_seconds;
 
 	($msg,$stat) = _clac_absolute_err_stat($check,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
-        $msg = "$msg ops/s (fcp read=$fcpread_per_seconds B/s, fcp write=$fcpwrite_per_seconds B/s, disk read=$diskread_per_seconds B/s, disk write=$diskwrite_per_seconds B/s))";
+        $msg = "$msg ops/s (fcp read=$fcpread_per_seconds B/s, fcp write=$fcpwrite_per_seconds B/s, disk read=$diskread_per_seconds B/s, disk write=$diskwrite_per_seconds B/s)";
 	$perf = "fcpops=$check fcpread=$fcpread_per_seconds fcpwrite=$fcpwrite_per_seconds diskread=$diskread_per_seconds diskwrite=$diskwrite_per_seconds";
 ### NVRAM ###
 } elsif("$opt{'check_type'}" eq "NVRAM") {
