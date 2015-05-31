@@ -287,10 +287,10 @@ $err
     -V <1|2c>               SNMP version (default 1), some checks run only 2c
     -T <check type>         Type of check, see bellow
     -t <seconds>            Timeout to SNMP session in seconds (default 5)
-
     -w <number>             Warning Value (default 500)
     -c <number>             Critical Value (default 500)
-    -v <vol_path|aggr_name> Volume Name in format /vol/volname/ or aggregate name
+    -v <vol_path|aggr_name> Volume Name in format /vol/volname/ 
+                            or aggregate name (not available in 7.x ONTAP)
     -e <vol1[,vol2[,...]]>  Exclude volumes from snap check (SNAPSHOT)
     -I                      Inform only, return OK every time (ignore -w and -c values)
     -h                      This help
@@ -884,16 +884,15 @@ if("$opt{'check_type'}" eq "TEMP") {
                                 $perf_temp = "$perf_temp, temp_$shelf{'ShelfNumber'}=$1";
                         }
 		    }
-		    else
-		     { print "$subkey->"; print "None "; }
+		    #else { print "$subkey->"; print "None "; }
 			
 			if ("$opt{'check_type'}" eq "SHELF") {
 			if(($shelf{$subkey} ne "") and ($shelf{$subkey} ne "noSuchInstance")) { push(@shelf_err,"$addr $subkey,") }
 			}
 		}
 
-		{ print "\n"; }
-		##if ("$opt{'check_type'}" eq "SHELFINFO") { print "\n"; }
+		#{ print "\n"; }
+		#if ("$opt{'check_type'}" eq "SHELF") { print "\n"; }
 
 		if($#shelf_err != -1) {
 			push(@errs,@shelf_err)
