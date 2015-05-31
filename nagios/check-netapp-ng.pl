@@ -878,8 +878,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 
 
 		foreach my $subkey ( keys %shelf) {
-		    if ( $shelf{$subkey} ne "" ) {
-		    	print "$subkey->$shelf{$subkey} ";
+		    if ( ($shelf{$subkey} ne "") and ($shelf{$subkey} ne "noSuchInstance") ) {
                         if ( "$subkey" eq "CurrentTemp" ) {
                                 $shelf{$subkey} =~ m/^([0-9]+)C.*$/;
                                 $perf_temp = "$perf_temp, temp_$shelf{'ShelfNumber'}=$1";
@@ -889,7 +888,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 		     { print "$subkey->"; print "None "; }
 			
 			if ("$opt{'check_type'}" eq "SHELF") {
-			if($shelf{$subkey}) { push(@shelf_err,"$addr $subkey,") }
+			if(($shelf{$subkey} ne "") and ($shelf{$subkey} ne "noSuchInstance")) { push(@shelf_err,"$addr $subkey,") }
 			}
 		}
 
