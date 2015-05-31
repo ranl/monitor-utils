@@ -731,7 +731,7 @@ if("$opt{'check_type'}" eq "TEMP") {
                 $stat = $ERRORS{'WARNING'};
                 $msg = "WARN: Unknown volume path or aggregate name '$opt{'vol'}'. Available values:";
                 foreach my $key (sort keys %$r_vol_tbl) {
-                        next if $$r_vol_tbl{$key} =~ m#.*/\.snapshot$#;
+                        next if ( !( ($$r_vol_tbl{$key} =~ m#^/vol/.*/$#) or ($$r_vol_tbl{$key} =~ m#^[^/]*$#) ) );
                         $msg .= " $$r_vol_tbl{$key}"
                 }
         }                
