@@ -724,7 +724,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 
 			($msg,$stat) = _clac_err_stat($used_prec,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
 
-			$perf = "$$r_vol_tbl{$key}=$used\k";
+			$perf = "$$r_vol_tbl{$key}=$used\KB";
 		}
 	}
         if ($msg =~ /^$/) {
