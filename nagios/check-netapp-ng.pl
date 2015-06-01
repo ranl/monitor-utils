@@ -712,8 +712,10 @@ if("$opt{'check_type'}" eq "TEMP") {
 			my @tmp_arr = split(/\./, $key);
 			my $oid = pop(@tmp_arr);
                         my $used = "";
+                        my $capacity = "";
 			if ($opt{'version'} eq '2c') {
                                 $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df64_used.$oid");
+                                $capacity = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df64_total.$oid");
                         }
                         else {
                                 my $used_high = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_high.$oid");
@@ -724,7 +726,10 @@ if("$opt{'check_type'}" eq "TEMP") {
 
 			($msg,$stat) = _clac_err_stat($used_prec,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
 
-			$perf = "$$r_vol_tbl{$key}=$used\KB";
+                        # https://nagios-plugins.org/doc/guidelines.html
+                        # 'label'=value[UOM];[warn];[crit];[min];[max]
+			$perf =   "$$r_vol_tbl{$key}=$used\KB;" .floor($capacity*$opt{'warn'}/100) .";" .floor($capacity*$opt{'crit'}/100) .";;$capacity";
+                        $perf .= " $$r_vol_tbl{$key}:perc=$used_prec\%;" .floor($opt{'warn'}) .";" .floor($opt{'crit'}) .";;100"; 
 		}
 	}
         if ($msg =~ /^$/) {
