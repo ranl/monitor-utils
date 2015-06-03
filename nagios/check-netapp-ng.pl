@@ -26,7 +26,7 @@
 ##
 ## DISKSUMMARY|HA|CIFSSESSIONS|
 ## AUTOSUPPORTSTATUS|NFSOPS|
-## CIFSOPS|SHELFINFO
+## CIFSOPS|SHELFINFO|...
 ##
 #####################################
 #####################################
@@ -47,11 +47,13 @@ my $stat = 0;
 my $msg;
 my $perf;
 my $script_name = "check-netapp-ng.pl";
-my $script_version = 1.1;
+my $script_version = 1.2;
 
 my $counterFilePath="/tmp";
 my $counterFile;
 
+my %opt;
+my $elapsedtime = 1;
 
 my %ERRORS = (
         'OK'       => '0',
@@ -76,11 +78,32 @@ my $fileRuntime;
 my $fileHostUptime;
 my $fileNfsOps;
 my $fileCifsOps;
+my $fileIscsiOps;
+my $fileIscsi64ReadBytes;
+my $fileIscsi64WriteBytes;
+my $fileFcpOps;
+my $fileFcp64ReadBytes;
+my $fileFcp64WriteBytes;
+my $fileDisk64ReadBytes;
+my $fileDisk64WriteBytes;
+
+# performance variables from SNMP
+my $total_nfs_ops;
+my $total_cifs_ops;
+my $total_disk_read;
+my $total_disk_write;
+my $blocks_iscsi_ops;
+my $blocks_iscsi_read;
+my $blocks_iscsi_write;
+my $blocks_fcp_ops;
+my $blocks_fcp_read;
+my $blocks_fcp_write;
 
 my $snmpHostUptime;
 
 
 ### SNMP OIDs
+### You can browse at http://www.oidview.com/mibs/789/NETAPP-MIB.html
 ###############
 my $snmpSysUpTime = '.1.3.6.1.2.1.1.3.0';
 my $snmpFailedFanCount = '.1.3.6.1.4.1.789.1.2.4.2.0';
@@ -129,7 +152,12 @@ my $snmp_netapp_volume_id_table_df_total = "$snmp_netapp_volume_id_table_df.3";
 my $snmp_netapp_volume_id_table_df_used = "$snmp_netapp_volume_id_table_df.4";
 my $snmp_netapp_volume_id_table_df_free = "$snmp_netapp_volume_id_table_df.5";
 my $snmp_netapp_volume_id_table_df_used_prec = "$snmp_netapp_volume_id_table_df.6";
-
+my $snmp_netapp_volume_id_table_df_used_high = "$snmp_netapp_volume_id_table_df.16";
+my $snmp_netapp_volume_id_table_df_used_low = "$snmp_netapp_volume_id_table_df.17";
+# 64bit values for SNMP v2c
+my $snmp_netapp_volume_id_table_df64_total = "$snmp_netapp_volume_id_table_df.29";
+my $snmp_netapp_volume_id_table_df64_used = "$snmp_netapp_volume_id_table_df.30";
+my $snmp_netapp_volume_id_table_df64_free = "$snmp_netapp_volume_id_table_df.31";
 
 my $snmp_netapp_enclNumber = '.1.3.6.1.4.1.789.1.21.1.1';
 my $snmpEnclTable = '.1.3.6.1.4.1.789.1.21.1.2.1';
@@ -155,13 +183,21 @@ my $snmpEnclTableVoltUnderFail = "$snmpEnclTable.38";
 my $snmpEnclTableVoltUnderWarn = "$snmpEnclTable.39";
 
 
-my $snmp_netapp_miscHighNfsOps = '.1.3.6.1.4.1.789.1.2.2.5.0';
-my $snmp_netapp_miscLowNfsOps = '.1.3.6.1.4.1.789.1.2.2.6.0';
+my $snmp_netapp_misc = '1.3.6.1.4.1.789.1.2.2';
+my $snmp_netapp_miscHighNfsOps = "$snmp_netapp_misc.5.0";
+my $snmp_netapp_miscLowNfsOps = "$snmp_netapp_misc.6.0";
+my $snmp_netapp_miscHighCifsOps = "$snmp_netapp_misc.7.0";
+my $snmp_netapp_miscLowCifsOps = "$snmp_netapp_misc.8.0";
+my $snmp_netapp_misc64DiskReadBytes = "$snmp_netapp_misc.32.0";
+my $snmp_netapp_misc64DiskWriteBytes = "$snmp_netapp_misc.33.0";
 
-my $snmp_netapp_miscHighCifsOps = '.1.3.6.1.4.1.789.1.2.2.7.0';
-my $snmp_netapp_miscLowCifsOps = '.1.3.6.1.4.1.789.1.2.2.8.0';
-
-
+my $snmp_netapp_blocks = '.1.3.6.1.4.1.789.1.17';
+my $snmp_netapp_blocks_iscsi64Ops = "$snmp_netapp_blocks.24.0";
+my $snmp_netapp_blocks_iscsi64ReadBytes = "$snmp_netapp_blocks.22.0";
+my $snmp_netapp_blocks_iscsi64WriteBytes = "$snmp_netapp_blocks.23.0";
+my $snmp_netapp_blocks_fcp64Ops = "$snmp_netapp_blocks.25.0";
+my $snmp_netapp_blocks_fcp64ReadBytes = "$snmp_netapp_blocks.20.0";
+my $snmp_netapp_blocks_fcp64WriteBytes = "$snmp_netapp_blocks.21.0";
 
 # SNMP Status Codes
 my %nvramBatteryStatus = (
@@ -253,9 +289,8 @@ my %EcnlStatusIndex = (
 
 
 sub _create_session(@) {
-	my ($server, $comm) = @_;
-	my $version = 1;
-	my ($sess, $err) = Net::SNMP->session( -hostname => $server, -version => $version, -community => $comm);
+	my ($server, $comm, $version, $timeout) = @_;
+	my ($sess, $err) = Net::SNMP->session( -hostname => $server, -version => $version, -community => $comm, -timeout => $timeout);
 	if (!defined($sess)) {
 		print "Can't create SNMP session to $server\n";
 		exit(1);
@@ -266,37 +301,61 @@ sub _create_session(@) {
 sub FSyntaxError($) {
 	my $err = shift;
 	print <<EOU;
-  $err
+$err
 
-     Syntax:
-	 $script_name
-	 Version : $script_version
+This is $script_name in version $script_version.
 
-	 -H = Ip/Dns Name of the Filer             -w = Warning Value
-	 -C = SNMP Community                       -c = Critical Value
-	 -T = Check type                           --vol = Volume Name
-						   -e = vol exclude from snap check
-	 TEMP                   - Temperature
-	 FAN                    - Fan Fail
-	 PS                     - Power Supply Fail
-	 CPULOAD                - CPU Load (-w -c)
-	 NVRAM                  - NVram Battery Status
-	 DISKUSED               - Vol Usage Precentage (-w -c --vol)
-	 SNAPSHOT               - Snapshot Config (-e volname,volname2,volname3)
-	 SHELF                  - Shelf Health
-	 SHELFINFO              - Shelf Model & Temperature Information
-	 NFSOPS                 - Nfs Ops per seconds (-w -c)
-	 CIFSOPS                - Cifs Ops per seconds (-w -c)
-	 NDMPSESSIONS           - Number of ndmp sessions (-w -c)
-	 CIFSSESSIONS           - Number of cifs sessions (-w -c)
-	 GLOBALSTATUS           - Global Status of the filer
-	 AUTOSUPPORTSTATUS      - Auto Support Status of the filer
-	 HA                     - High Availability
-	 DISKSUMMARY            - Status of disks
-	 FAILEDDISK             - Number of failed disks
-	 UPTIME                 - Only show\'s uptime
-	 CACHEAGE               - Cache Age
+  Syntax:
+    -H <IP_or_Hostname>     Ip/Dns Name of the Filer
+    -C <community_name>     SNMP Community Name for read
+    -V <1|2c>               SNMP version (default 1), some checks run only 2c
+    -T <check_type>         Type of check, see bellow
+    -t <seconds>            Timeout to SNMP session in seconds (default 5)
+    -w <number>             Warning Value (default 500)
+    -c <number>             Critical Value (default 500)
+    -v <vol_path|aggr_name> Volume Name in format /vol/volname/ 
+                            or aggregate name (not available in 7.x ONTAP)
+                            For available values use any word, such as \'-v whatever\'
+    -e <vol1[,vol2[,...]]>  Exclude volumes from snap check (SNAPSHOT)
+    -I                      Inform only, return OK every time (ignore -w and -c values)
+    -h                      This help
 
+  Available check types:
+    TEMP              - Temperature
+    FAN               - Fan Fail
+    PS                - Power Supply Fail
+    CPULOAD           - CPU Load (-w -c)
+    NVRAM             - NVram Battery Status
+    DISKUSED          - Usage Percentage of volume or aggregate (-w -c -v)
+    SNAPSHOT          - Snapshot Config (-e volname,volname2,volname3)
+    SHELF             - Shelf Health
+    SHELFINFO         - Shelf Model & Temperature Information
+    NFSOPS            - Nfs Ops per seconds (-w -c)
+    CIFSOPS           - Cifs Ops per seconds (-w -c)
+    ISCSIOPS          - iSCSI Ops per seconds, collect read/write performance data, using SNMPv2c (-w -c)
+    FCPOPS            - FibreChannel Ops per seconds, collect read/write performance data, using SNMPv2c (-w -c)
+    NDMPSESSIONS      - Number of ndmp sessions (-w -c)
+    CIFSSESSIONS      - Number of cifs sessions (-w -c)
+    GLOBALSTATUS      - Global Status of the filer
+    AUTOSUPPORTSTATUS - Auto Support Status of the filer
+    HA                - High Availability
+    DISKSUMMARY       - Status of disks
+    FAILEDDISK        - Number of failed disks
+    UPTIME            - Only show\'s uptime
+    CACHEAGE          - Cache Age (-w -c)
+
+  Examples:
+    $script_name -H netapp.mydomain -C public -T UPTIME
+      UPTIME: 2 days, 23:03:21.09 | uptime=255801s
+
+    $script_name -H netapp.mydomain -C public -T DISKUSED -v /vol/data/ -w 90 -c 95 -V 2c
+      OK: DISKUSED 79% | /vol/data/=8104595240k
+
+    $script_name -H netapp.mydomain -C public -T GLOBALSTATUS
+      CRIT: GLOBALSTATUS nonCritical 4 Disk on adapter 1a, shelf 1, bay 9, failed.   | globalstatus=4
+        
+    $script_name -H netapp.mydomain -C public -T DISKUSED -v wtf
+      WARN: Unknown volume path or aggregate name 'wtf'. Available values: aggr_p1a_sas2_mirror /vol/vol0/ /vol/esx/ /vol/xen_a/
 
 EOU
 	exit($ERRORS{'UNKNOWN'});
@@ -317,7 +376,7 @@ sub _clac_generic_err_stat(@) {
 	my $scale = shift;
 	my $r_msg;
 	my $r_stat;
-	if($value <= $tmp_warn) {
+	if($opt{'inform'} or ($value <= $tmp_warn)) {
 		$r_stat = $ERRORS{'OK'};
 		$r_msg = "OK: $value_type $value $scale";
 	}  elsif($value > $tmp_warn and $value < $tmp_crit) {
@@ -374,29 +433,48 @@ sub _clac_minutes_err_stat(@) {
 	return($r_msg,$r_stat);
 }
 
+sub _ulong64(@) {
+        my $high = shift;
+        my $low = shift;
+        if ($low < 0) { 
+                $low = $low & 0x00000000FFFFFFFF; 
+                $low = $low | 0x0000000080000000; 
+        } 
+        if ($high < 0) { 
+                $high = $high & 0x00000000FFFFFFFF; 
+                $high = $high | 0x0000000080000000; 
+        } 
+        return ($high<<32)|$low; 
+}
 
 
 ### Gather input from user
 #############################
-my %opt;
 $opt{'crit'} = 500;
 $opt{'warn'} = 500;
+$opt{'version'} = 1;
+$opt{'timeout'} = 5;
 my $result = GetOptions(\%opt,
 						'filer|H=s',
 						'community|C=s',
+                                                'version|V=s',
 						'check_type|T=s',
 						'warn|w=i',
 						'crit|c=i',
 						'vol|v=s',
 						'exclude|e=s',
+                                                'inform|I',
+                                                'timeout|t=i',
+                                                "help|h",
 						);
 
+FSyntaxError("") if defined $opt{'help'};
 FSyntaxError("Missing -H")  unless defined $opt{'filer'};
 FSyntaxError("Missing -C")  unless defined $opt{'community'};
 FSyntaxError("Missing -T")  unless defined $opt{'check_type'};
 if($opt{'vol'}) {
-	if($opt{'vol'} !~ /^\/.*\/$/) {
-		FSyntaxError("$opt{'vol'} format is /vol/volname/ !");
+	if ( !( ($opt{'vol'} =~ m#^/vol/.*/$#) or ($opt{'vol'} =~ m#^[^/]*$#) ) )  {
+		FSyntaxError("$opt{'vol'} format is '/vol/volname/' or 'aggregate_name'! For listing available names use any text such as '-v whatever'.");
 	}
 }
 if($opt{'crit'} and $opt{'warn'}) {
@@ -405,6 +483,9 @@ if($opt{'crit'} and $opt{'warn'}) {
 	}
 }
 
+if( ($opt{'check_type'} eq 'ISCSIOPS') or ($opt{'check_type'} eq 'FCPOPS') ) {
+        $opt{'version'} = '2c';
+}
 
 if (!defined($counterFilePath)) {
     $state = "UNKNOWN";
@@ -416,90 +497,117 @@ if (!defined($counterFilePath)) {
 
 
 
+
 # Starting Alaram
 alarm($TIMEOUT);
 
 # Establish SNMP Session
-our $snmp_session = _create_session($opt{'filer'},$opt{'community'});
+our $snmp_session = _create_session($opt{'filer'},$opt{'community'},$opt{'version'},$opt{'timeout'});
 
-# setup counterFile now that we have host IP and oid
-$counterFile = $counterFilePath."/".$opt{'filer'}.".check-netapp-ng.ops.nagioscache";
-
-$snmpHostUptime =  _get_oid_value($snmp_session,$snmpSysUpTime);
+# setup counterFile now that we have host IP and check type
+$counterFile = $counterFilePath."/".$opt{'filer'}.".check-netapp-ng.$opt{'check_type'}.nagioscache";
 
 
-# READ CACHE DATA FROM FILE IF IT EXISTS
-if (-e $counterFile) {
-	open(FILE, "$counterFile");
-	chomp($fileRuntime = <FILE>);
-	chomp($fileHostUptime = <FILE>);
-	chomp($fileNfsOps = <FILE>);
-	chomp($fileCifsOps = <FILE>);
-	close(FILE);
-    } # end if file exists
+# READ AND UPDATE CACHE FOR SPECIFIC TESTS FROM FILE
+if (("$opt{'check_type'}" eq "CIFSOPS") or ("$opt{'check_type'}" eq "NFSOPS") or ("$opt{'check_type'}" eq "ISCSIOPS") or ("$opt{'check_type'}" eq "FCPOPS")) {
+        $snmpHostUptime =  _get_oid_value($snmp_session,$snmpSysUpTime);
 
+        # READ CACHE DATA FROM FILE IF IT EXISTS
+        if (-e $counterFile) {
+                open(FILE, "$counterFile");
+                chomp($fileRuntime = <FILE>);
+                chomp($fileHostUptime = <FILE>);
+                chomp($fileNfsOps = <FILE>) if $opt{'check_type'} eq 'NFSOPS';
+                chomp($fileCifsOps = <FILE>) if $opt{'check_type'} eq 'CIFSOPS';
+                if ($opt{'check_type'} eq 'ISCSIOPS') {
+                        chomp($fileIscsiOps = <FILE>);
+                        chomp($fileIscsi64ReadBytes = <FILE>);
+                        chomp($fileIscsi64WriteBytes = <FILE>);
+                }
+                if ($opt{'check_type'} eq 'FCPOPS') {
+                        chomp($fileFcpOps = <FILE>);
+                        chomp($fileFcp64ReadBytes = <FILE>);
+                        chomp($fileFcp64WriteBytes = <FILE>);
+                }
+                if ( ($opt{'check_type'} eq 'ISCSIOPS') or ($opt{'check_type'} eq 'FCPOPS') ) {
+                        chomp($fileDisk64ReadBytes = <FILE>);
+                        chomp($fileDisk64WriteBytes = <FILE>);
+                }
+                close(FILE);
+        } # end if file exists
 
-# POPULATE CACHE DATA TO FILE 
+        # POPULATE CACHE DATA TO FILE
+        if ((-w $counterFile) || (-w dirname($counterFile))) {
+                open(FILE, ">$counterFile");
+                print FILE "$runtime\n";
+                print FILE "$snmpHostUptime\n";
 
-if ((-w $counterFile) || (-w dirname($counterFile))) {
-	open(FILE, ">$counterFile");
-	print FILE "$runtime\n";
-	print FILE "$snmpHostUptime\n";
+                if ($opt{'check_type'} eq 'NFSOPS') {
+                        my $low_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowNfsOps);
+                        my $high_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighNfsOps);
+                        $total_nfs_ops = _ulong64($high_nfs_ops, $low_nfs_ops);
+                        print FILE "$total_nfs_ops\n";
+                }
 
-	my $low_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowNfsOps);
-	my $high_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighNfsOps);
-	
-	my $temp_high_ops = $high_nfs_ops << 32;
-	my $total_nfs_ops = $temp_high_ops | $low_nfs_ops;
+                if ($opt{'check_type'} eq 'CIFSOPS') {
+                        my $low_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowCifsOps);
+                        my $high_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighCifsOps);
+                        $total_cifs_ops = _ulong64($high_cifs_ops, $low_cifs_ops);
+                        print FILE "$total_cifs_ops\n";
+                }
 
-	print FILE "$total_nfs_ops\n";
+                if ($opt{'check_type'} eq 'ISCSIOPS') {
+                        $blocks_iscsi_ops = _get_oid_value($snmp_session,$snmp_netapp_blocks_iscsi64Ops);
+                        $blocks_iscsi_read = _get_oid_value($snmp_session,$snmp_netapp_blocks_iscsi64ReadBytes);
+                        $blocks_iscsi_write = _get_oid_value($snmp_session,$snmp_netapp_blocks_iscsi64WriteBytes);
+                        print FILE "$blocks_iscsi_ops\n$blocks_iscsi_read\n$blocks_iscsi_write\n";
+                }
 
-	my $low_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowCifsOps);
-	my $high_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighCifsOps);
-	
-	my $temp_high_ops = $high_cifs_ops << 32;
-	my $total_cifs_ops = $temp_high_ops | $low_cifs_ops;
+                if ($opt{'check_type'} eq 'FCPOPS') {
+                        $blocks_fcp_ops = _get_oid_value($snmp_session,$snmp_netapp_blocks_fcp64Ops);
+                        $blocks_fcp_read = _get_oid_value($snmp_session,$snmp_netapp_blocks_fcp64ReadBytes);
+                        $blocks_fcp_write = _get_oid_value($snmp_session,$snmp_netapp_blocks_fcp64WriteBytes);
+                        print FILE "$blocks_fcp_ops\n$blocks_fcp_read\n$blocks_fcp_write\n";
+                }
 
-	print FILE "$total_cifs_ops\n";
+                if ( ($opt{'check_type'} eq 'ISCSIOPS') or ($opt{'check_type'} eq 'FCPOPS') ) {
+                        $total_disk_read = _get_oid_value($snmp_session,$snmp_netapp_misc64DiskReadBytes);
+                        $total_disk_write = _get_oid_value($snmp_session,$snmp_netapp_misc64DiskWriteBytes);
+                        print FILE "$total_disk_read\n$total_disk_write\n";
+                }
+                close(FILE);
+            } else {
+                $state = "WARNING";
+                $answer = "file $counterFile is not writable\n";
+                print ("$state: $answer\n");
+                exit $ERRORS{$state};
+        } # end if file is writable
 
-	close(FILE);
-    } else {
-	$state = "WARNING";
-	$answer = "file $counterFile is not writable\n";
-	print ("$state: $answer\n");
-        exit $ERRORS{$state};
-    } # end if file is writable
+        # check to see if we pulled data from the cache file or not
+        if ( (!defined($fileRuntime)) ) {
+            $state = "OK";
+            $answer = "never cached - caching\n";
+            print "$state: $answer\n";
+            exit $ERRORS{$state};
+        } # end if cache file didn't exist
 
+        # check host's uptime to see if it goes backward
+        if ($fileHostUptime > $snmpHostUptime) {
+            $state = "WARNING";
+            $answer = "uptime goes backward - recaching data\n";
+            print "$state: $answer\n";
+            exit $ERRORS{$state};
+        } # end if host uptime goes backward
 
-# check to see if we pulled data from the cache file or not
-if ( (!defined($fileRuntime)) && ( ("$opt{'check_type'}" eq "CIFSOPS") or ("$opt{'check_type'}" eq "NFSOPS") )) {
-    $state = "OK";
-    $answer = "never cached - caching\n";
-    print "$state: $answer\n";
-    exit $ERRORS{$state};
-} # end if cache file didn't exist
+        $elapsedtime=$runtime-$fileRuntime;
 
-# check host's uptime to see if it goes backward
-if ($fileHostUptime > $snmpHostUptime) {
-    $state = "WARNING";
-    $answer = "uptime goes backward - recaching data\n";
-    print "$state: $answer\n";
-    exit $ERRORS{$state};
-} # end if host uptime goes backward
+        if ($elapsedtime<1){ $elapsedtime=1; }
 
-my $elapsedtime=$runtime-$fileRuntime;
-
-if ($elapsedtime<1){ $elapsedtime=1; }
-
-
+} # end populate cache only for *OPS tests
 
 #print "fileHostUptime : ".$fileHostUptime."\n";
 #print "snmpeHostUptime : ".$snmpHostUptime."\n";
 #print "elapsedTime : ".$elapsedtime."\n";
-
-
-
-
 
 
 
@@ -543,12 +651,6 @@ if("$opt{'check_type'}" eq "TEMP") {
 	$perf = "cpuload=$check\%";
 ### NFSOPS ###
 } elsif("$opt{'check_type'}" eq "NFSOPS") {
-	my $low_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowNfsOps);
-	my $high_nfs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighNfsOps);
-	
-	my $temp_high_ops = $high_nfs_ops << 32;
-	my $total_nfs_ops = $temp_high_ops | $low_nfs_ops;
-
 	my $nfsops_per_seconds=floor ( ($total_nfs_ops-$fileNfsOps)/$elapsedtime );
 
 	my $check=$nfsops_per_seconds;
@@ -557,18 +659,37 @@ if("$opt{'check_type'}" eq "TEMP") {
 	$perf = "nfsops=$check";
 ### CIFSOPS ###
 } elsif("$opt{'check_type'}" eq "CIFSOPS") {
-	my $low_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscLowCifsOps);
-	my $high_cifs_ops = _get_oid_value($snmp_session,$snmp_netapp_miscHighCifsOps);
-	
-	my $temp_high_ops = $high_cifs_ops << 32;
-	my $total_cifs_ops = $temp_high_ops | $low_cifs_ops;
-
 	my $cifsops_per_seconds=floor ( ($total_cifs_ops-$fileCifsOps)/$elapsedtime );
 
 	my $check=$cifsops_per_seconds;
 
 	($msg,$stat) = _clac_absolute_err_stat($check,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
 	$perf = "cifsops=$check";
+### ISCSIOPS ###
+} elsif("$opt{'check_type'}" eq "ISCSIOPS") {
+	my $iscsiops_per_seconds=floor ( ($blocks_iscsi_ops-$fileIscsiOps)/$elapsedtime );
+        my $iscsiread_per_seconds=floor ( ($blocks_iscsi_read-$fileIscsi64ReadBytes)/$elapsedtime );
+        my $iscsiwrite_per_seconds=floor ( ($blocks_iscsi_write-$fileIscsi64WriteBytes)/$elapsedtime );
+        my $diskread_per_seconds=floor ( ($total_disk_read-$fileDisk64ReadBytes)/$elapsedtime );
+        my $diskwrite_per_seconds=floor ( ($total_disk_write-$fileDisk64WriteBytes)/$elapsedtime );
+	my $check=$iscsiops_per_seconds;
+
+	($msg,$stat) = _clac_absolute_err_stat($check,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
+        $msg = "$msg ops/s (iscsi read=$iscsiread_per_seconds B/s, iscsi write=$iscsiwrite_per_seconds B/s, disk read=$diskread_per_seconds B/s, disk write=$diskwrite_per_seconds B/s)";
+	$perf = "iscsiops=$check iscsiread=$iscsiread_per_seconds iscsiwrite=$iscsiwrite_per_seconds diskread=$diskread_per_seconds diskwrite=$diskwrite_per_seconds";
+### FCPOPS ###
+} elsif("$opt{'check_type'}" eq "FCPOPS") {
+	my $fcpops_per_seconds=floor ( ($blocks_fcp_ops-$fileFcpOps)/$elapsedtime );
+        my $fcpread_per_seconds=floor ( ($blocks_fcp_read-$fileFcp64ReadBytes)/$elapsedtime );
+        my $fcpwrite_per_seconds=floor ( ($blocks_fcp_write-$fileFcp64WriteBytes)/$elapsedtime );
+        my $diskread_per_seconds=floor ( ($total_disk_read-$fileDisk64ReadBytes)/$elapsedtime );
+        my $diskwrite_per_seconds=floor ( ($total_disk_write-$fileDisk64WriteBytes)/$elapsedtime );
+
+	my $check=$fcpops_per_seconds;
+
+	($msg,$stat) = _clac_absolute_err_stat($check,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
+        $msg = "$msg ops/s (fcp read=$fcpread_per_seconds B/s, fcp write=$fcpwrite_per_seconds B/s, disk read=$diskread_per_seconds B/s, disk write=$diskwrite_per_seconds B/s)";
+	$perf = "fcpops=$check fcpread=$fcpread_per_seconds fcpwrite=$fcpwrite_per_seconds diskread=$diskread_per_seconds diskwrite=$diskwrite_per_seconds";
 ### NVRAM ###
 } elsif("$opt{'check_type'}" eq "NVRAM") {
 	my $check = _get_oid_value($snmp_session,$snmpnvramBatteryStatus);
@@ -583,25 +704,41 @@ if("$opt{'check_type'}" eq "TEMP") {
 ### DISKUSED ###
 } elsif("$opt{'check_type'}" eq "DISKUSED") {
 
-	FSyntaxError("Missing -vol")  unless defined $opt{'vol'};
+	FSyntaxError("Missing -v")  unless defined $opt{'vol'};
 
 	my $r_vol_tbl = $snmp_session->get_table($snmp_netapp_volume_id_table_df_name);
 	foreach my $key ( keys %$r_vol_tbl) {
 		if("$$r_vol_tbl{$key}" eq "$opt{'vol'}") {
 			my @tmp_arr = split(/\./, $key);
 			my $oid = pop(@tmp_arr);
-
-			my $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used.$oid");
+                        my $used = "";
+                        my $capacity = "";
+			if ($opt{'version'} eq '2c') {
+                                $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df64_used.$oid");
+                                $capacity = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df64_total.$oid");
+                        }
+                        else {
+                                my $used_high = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_high.$oid");
+                                my $used_low  = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_low.$oid");
+                                $used = _ulong64($used_high, $used_low);
+                        }
 			my $used_prec = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df_used_prec.$oid");
 
 			($msg,$stat) = _clac_err_stat($used_prec,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
 
-			$perf = "$$r_vol_tbl{$key}=$used\k";
+                        # https://nagios-plugins.org/doc/guidelines.html
+                        # 'label'=value[UOM];[warn];[crit];[min];[max]
+			$perf =   "$$r_vol_tbl{$key}=$used\KB;" .floor($capacity*$opt{'warn'}/100) .";" .floor($capacity*$opt{'crit'}/100) .";;$capacity";
+                        $perf .= " $$r_vol_tbl{$key}:perc=$used_prec\%;" .floor($opt{'warn'}) .";" .floor($opt{'crit'}) .";;100"; 
 		}
 	}
         if ($msg =~ /^$/) {
                 $stat = $ERRORS{'WARNING'};
-                $msg = "WARN: Missing volume $opt{'vol'} !";
+                $msg = "WARN: Unknown volume path or aggregate name '$opt{'vol'}'. Available values:";
+                foreach my $key (sort keys %$r_vol_tbl) {
+                        next if ( !( ($$r_vol_tbl{$key} =~ m#^/vol/.*/$#) or ($$r_vol_tbl{$key} =~ m#^[^/]*$#) ) );
+                        $msg .= " $$r_vol_tbl{$key}"
+                }
         }                
 ### SNAPSHOT ###
 } elsif("$opt{'check_type'}" eq "SNAPSHOT") {
@@ -800,23 +937,21 @@ if("$opt{'check_type'}" eq "TEMP") {
 
 
 		foreach my $subkey ( keys %shelf) {
-		    if ( $shelf{$subkey} ne "" ) {
-		    	print "$subkey->$shelf{$subkey} ";
+		    if ( ($shelf{$subkey} ne "") and ($shelf{$subkey} ne "noSuchInstance") ) {
                         if ( "$subkey" eq "CurrentTemp" ) {
                                 $shelf{$subkey} =~ m/^([0-9]+)C.*$/;
                                 $perf_temp = "$perf_temp, temp_$shelf{'ShelfNumber'}=$1";
                         }
 		    }
-		    else
-		     { print "$subkey->"; print "None "; }
+		    #else { print "$subkey->"; print "None "; }
 			
 			if ("$opt{'check_type'}" eq "SHELF") {
-			if($shelf{$subkey}) { push(@shelf_err,"$addr $subkey,") }
+			if(($shelf{$subkey} ne "") and ($shelf{$subkey} ne "noSuchInstance")) { push(@shelf_err,"$addr $subkey,") }
 			}
 		}
 
-		{ print "\n"; }
-		##if ("$opt{'check_type'}" eq "SHELFINFO") { print "\n"; }
+		#{ print "\n"; }
+		#if ("$opt{'check_type'}" eq "SHELF") { print "\n"; }
 
 		if($#shelf_err != -1) {
 			push(@errs,@shelf_err)
@@ -846,6 +981,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 	FSyntaxError("$opt{'check_type'} invalid parameter !");
 }
 
+$perf ? print "$msg | $perf\n" : print "$msg\n";
 
-print "$msg | $perf\n";
 exit($stat);
+
