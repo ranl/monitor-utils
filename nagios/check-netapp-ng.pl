@@ -648,7 +648,7 @@ if("$opt{'check_type'}" eq "TEMP") {
 } elsif("$opt{'check_type'}" eq "CPULOAD") {
 	my $check = _get_oid_value($snmp_session,$snmpcpuBusyTimePerCent);
 	($msg,$stat) = _clac_err_stat($check,$opt{'check_type'},$opt{'warn'},$opt{'crit'});
-	$perf = "cpuload=$check\%";
+	$perf = "cpuload=$check\%;$opt{'warn'};$opt{'crit'};;";
 ### NFSOPS ###
 } elsif("$opt{'check_type'}" eq "NFSOPS") {
 	my $nfsops_per_seconds=floor ( ($total_nfs_ops-$fileNfsOps)/$elapsedtime );
