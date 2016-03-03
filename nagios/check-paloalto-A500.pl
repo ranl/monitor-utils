@@ -72,7 +72,7 @@ sub FSyntaxError {
     print "Version : $script_version\n";
     print "-H = Ip/Dns Name of the FW\n";
     print "-C = SNMP Community\n";
-    print "-t = Check type (currently only cpu/firmware/model/ha/sessions/icmp_sesions/tcp_sessions/udp_sessions)\n";
+    print "-t = Check type (currently only cpu/firmware/model/ha/sessions/icmp_sessions/tcp_sessions/udp_sessions)\n";
     print "-w = Warning Value\n";
     print "-c = Critical Value\n";
     exit(3);
