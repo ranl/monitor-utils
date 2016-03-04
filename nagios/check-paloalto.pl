@@ -16,7 +16,7 @@
 ## by laurent.dufour@havas.com
 ##
 ## the following parameters has
-## been tested against a PA5050
+## been tested against a PA5050 and PA3020
 ##
 ## cpu|firmware|ha|model|
 ## sessions|udp_sessions|tcp_sessions
