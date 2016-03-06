@@ -123,8 +123,7 @@ if($check_type eq "model") {
     my $R_firm = $snmp_session->get_request(-varbindlist => [$s_pa_model]);
     my $palo_model = "$R_firm->{$s_pa_model}";
 
-
-    $msg = "OK: Palo Alto  $palo_model";
+    $msg = "OK: Palo Alto $palo_model";
     $perf="";
     $stat = 0;
 }
@@ -140,8 +139,7 @@ elsif($check_type eq "ha") {
     my $R_firm = $snmp_session->get_request(-varbindlist => [$s_ha_peer_state]);
     my $ha_peer_state = "$R_firm->{$s_ha_peer_state}";
 
-
-    $msg =  "OK: High Availablity Mode :  $ha_mode - Local :  $ha_local_state - Peer  :  $ha_peer_state\n";
+    $msg =  "OK: High Availablity Mode: $ha_mode, Local: $ha_local_state, Peer: $ha_peer_state\n";
     $perf="";
     $stat = 0;
 }
@@ -158,19 +156,16 @@ elsif($check_type eq "sessions") {
 	$perf=" - Max Active Sessions :  $pa_max_sessions";
     
     if($pa_total_active_sessions > $crit ) {
-	$msg =  "CRIT: Total Active Sessions :  $pa_total_active_sessions".$perf;
+	$msg =  "CRITICAL: Total Active Sessions: $pa_total_active_sessions".$perf;
 	$stat = 2;
     } elsif($pa_total_active_sessions > $warn ) {
-	$msg =  "WARN: Total Active Sessions :  $pa_total_active_sessions".$perf;
+	$msg =  "WARNING: Total Active Sessions: $pa_total_active_sessions".$perf;
 	$stat = 1;
     } else {
-	$msg =  "OK:   Total Active Sessions :  $pa_total_active_sessions".$perf;
+	$msg =  "OK: Total Active Sessions: $pa_total_active_sessions".$perf;
 	$stat = 0;
-
     }
-
 	$perf="";
-
 }
 
 ### TCP SESSIONS ###
@@ -178,43 +173,35 @@ elsif($check_type eq "tcp_sessions") {
     my $R_firm = $snmp_session->get_request(-varbindlist => [$s_pa_total_tcp_active_sessions]);
     my $pa_total_tcp_active_sessions = "$R_firm->{$s_pa_total_tcp_active_sessions}";
 
-    
     if($pa_total_tcp_active_sessions > $crit ) {
-	$msg =  "CRIT: TCP Active Sessions :  $pa_total_tcp_active_sessions";
+	$msg =  "CRITICAL: TCP Active Sessions: $pa_total_tcp_active_sessions";
 	$stat = 2;
     } elsif($pa_total_tcp_active_sessions > $warn ) {
-	$msg =  "WARN: TCP Active Sessions :  $pa_total_tcp_active_sessions";
+	$msg =  "WARNING: TCP Active Sessions: $pa_total_tcp_active_sessions";
 	$stat = 1;
     } else {
-	$msg =  "OK:   TCP Active Sessions :  $pa_total_tcp_active_sessions";
+	$msg =  "OK: TCP Active Sessions: $pa_total_tcp_active_sessions";
 	$stat = 0;
-
     }
-
 	$perf="";
-
 }
 
 ### UDP SESSIONS ###
 elsif($check_type eq "udp_sessions") {
     my $R_firm = $snmp_session->get_request(-varbindlist => [$s_pa_total_udp_active_sessions]);
     my $pa_total_udp_active_sessions = "$R_firm->{$s_pa_total_udp_active_sessions}";
-
     
     if($pa_total_udp_active_sessions > $crit ) {
-	$msg =  "CRIT: UDP Active Sessions :  $pa_total_udp_active_sessions";
+	$msg =  "CRITICAL: UDP Active Sessions: $pa_total_udp_active_sessions";
 	$stat = 2;
     } elsif($pa_total_udp_active_sessions > $warn ) {
-	$msg =  "WARN: UDP Active Sessions :  $pa_total_udp_active_sessions";
+	$msg =  "WARNING: UDP Active Sessions: $pa_total_udp_active_sessions";
 	$stat = 1;
     } else {
-	$msg =  "OK:   UDP Active Sessions :  $pa_total_udp_active_sessions";
+	$msg =  "OK: UDP Active Sessions: $pa_total_udp_active_sessions";
 	$stat = 0;
-
     }
-
 	$perf="";
-
 }
 
 ### ICMP SESSIONS ###
@@ -224,26 +211,23 @@ elsif($check_type eq "icmp_sessions") {
 
     
     if($pa_total_icmp_active_sessions > $crit ) {
-	$msg =  "CRIT: ICMP Active Sessions :  $pa_total_icmp_active_sessions";
+	$msg =  "CRITICAL: ICMP Active Sessions: $pa_total_icmp_active_sessions";
 	$stat = 2;
     } elsif($pa_total_icmp_active_sessions > $warn ) {
-	$msg =  "WARN: ICMP Active Sessions :  $pa_total_icmp_active_sessions";
+	$msg =  "WARNING: ICMP Active Sessions: $pa_total_icmp_active_sessions";
 	$stat = 1;
     } else {
-	$msg =  "OK:   ICMP Active Sessions :  $pa_total_icmp_active_sessions";
+	$msg =  "OK: ICMP Active Sessions: $pa_total_icmp_active_sessions";
 	$stat = 0;
 
     }
-
 	$perf="";
-
 }
 
 ### firmware ###
 elsif($check_type eq "firmware") {
     my $R_firm = $snmp_session->get_request(-varbindlist => [$s_firmware_version]);
     my $palo_os_ver = "$R_firm->{$s_firmware_version}";
-
 
     $msg = "OK: Firmware $palo_os_ver";
     $perf="";
@@ -258,13 +242,13 @@ elsif($check_type eq "cpu") {
     my $data = "$R_data->{$s_cpu_data}";
 
     if($mgmt > $crit or $data > $crit) {
-	$msg = "CRIT: Mgmt - $mgmt, Data - $data";
+	$msg = "CRITICAL: Mgmt: $mgmt, Data: $data";
 	$stat = 2;
     } elsif($mgmt > $warn or $data > $warn) {
-	$msg = "WARN: Mgmt - $mgmt, Data - $data";
+	$msg = "WARNING: Mgmt: $mgmt, Data: $data";
 	$stat = 1;
     } else {
-	$msg = "OK: Mgmt - $mgmt, Data - $data";
+	$msg = "OK: Mgmt: $mgmt, Data: $data";
 	$stat = 0;
     }
     $perf = "mgmt=$mgmt;data=$data;$warn;$crit";
