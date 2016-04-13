@@ -38,6 +38,8 @@ use strict;
 use POSIX;
 use lib "/usr/lib/nagios/libexec";
 use lib "/usr/lib/nagios/plugins";
+use lib "/usr/lib64/nagios/libexec";
+use lib "/usr/lib64/nagios/plugins";
 use utils qw($TIMEOUT %ERRORS);
 use Net::SNMP;
 use File::Basename;
