@@ -19,7 +19,7 @@
 ## 20160211 : Added FSSTATUS/SNAPSHOTAGE
 ##
 ## the following parameters has
-## been tested against a 
+## been tested against a
 ## FAS2220
 ## FAS2240
 ## FAS3220
@@ -38,6 +38,8 @@ use strict;
 use POSIX;
 use lib "/usr/lib/nagios/libexec";
 use lib "/usr/lib/nagios/plugins";
+use lib "/usr/lib64/nagios/libexec";
+use lib "/usr/lib64/nagios/plugins";
 use utils qw($TIMEOUT %ERRORS);
 use Net::SNMP;
 use File::Basename;
@@ -348,7 +350,7 @@ This is $script_name in version $script_version.
     -t <seconds>            Timeout to SNMP session in seconds (default 5)
     -w <number>             Warning Value (default 500)
     -c <number>             Critical Value (default 500)
-    -v <vol_path|aggr_name> Volume Name in format /vol/volname/
+    -v <vol_path|aggr_name> Volume Name in format /vol/volname
                             or aggregate name (not available in 7.x ONTAP)
                             For available values use any word, such as \'-v whatever\'
     -e <vol1[,vol2[,...]]>  Exclude volumes from snap check (SNAPSHOT/SNAPSHOTAGE)
@@ -510,8 +512,8 @@ FSyntaxError("Missing -H")  unless defined $opt{'filer'};
 FSyntaxError("Missing -C")  unless defined $opt{'community'};
 FSyntaxError("Missing -T")  unless defined $opt{'check_type'};
 if($opt{'vol'}) {
-        if ( !( ($opt{'vol'} =~ m#^/vol/.*/$#) or ($opt{'vol'} =~ m#^[^/]*$#) ) )  {
-                FSyntaxError("$opt{'vol'} format is '/vol/volname/' or 'aggregate_name'! For listing available names use any text such as '-v whatever'.");
+        if ( !( ($opt{'vol'} =~ m#^/vol/.*$#) or ($opt{'vol'} =~ m#^[^/]*$#) ) )  {
+                FSyntaxError("$opt{'vol'} format is '/vol/volname' or 'aggregate_name'! For listing available names use any text such as '-v whatever'.");
         }
 }
 if($opt{'crit'} and $opt{'warn'}) {
@@ -773,7 +775,7 @@ if("$opt{'check_type'}" eq "TEMP") {
                 $stat = $ERRORS{'WARNING'};
                 $msg = "WARN: Unknown volume path or aggregate name '$opt{'vol'}'. Available values:";
                 foreach my $key (sort keys %$r_vol_tbl) {
-                        next if ( !( ($$r_vol_tbl{$key} =~ m#^/vol/.*/$#) or ($$r_vol_tbl{$key} =~ m#^[^/]*$#) ) );
+                        next if ( !( ($$r_vol_tbl{$key} =~ m#^/vol/.*$#) or ($$r_vol_tbl{$key} =~ m#^[^/]*$#) ) );
                         $msg .= " $$r_vol_tbl{$key}"
                 }
                 }
