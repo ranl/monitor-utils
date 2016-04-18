@@ -56,8 +56,8 @@ my %phy_dev_status = (
 	2 => 'warning',
 	3 => 'critical',
 	4 => 'shutdown',
-	5 => 'notPresent',
-	6 => 'notFunctioning',
+	5 => 'not Present',
+	6 => 'not Functioning',
 );
 my %module_status_code = (
 	1 => 'unknown',
@@ -93,14 +93,20 @@ my %int_status_index = (
 
 ### Functions
 ###############
+sub check_oid_return {
+	my ($oid_value, $parameter_name) = @_;
+	
+	if ( $oid_value == '' ) {
+		print "Remote device does not return data for $parameter_name\n";
+		exit(1);
+	}
+}
+
 sub _create_session {
 	my ($server, $comm) = @_;
 	my $version = 1;
 	my ($sess, $err) = Net::SNMP->session( -hostname => $server, -version => $version, -community => $comm);
-	if (!defined($sess)) {
-		print "Can't create SNMP session to $server\n";
-		exit(1);
-	}
+
 	return $sess;
 }
 
@@ -193,10 +199,7 @@ if($check_type =~ /^temp/) {
 		last;
 	}
 	
-	if("$temp" eq "") {
-		print "The switch $switch can't report temperature via SNMP\n";
-		FSyntaxError();
-	}
+	check_oid_return($temp, $check_type);
 	
 	if($temp > 1) {
 		if($warn > $crit and "$check_type") {
@@ -238,9 +241,15 @@ if($check_type =~ /^temp/) {
 	my $mem_free = "$R_mem_free->{$S_mem_free}";
 	my $mem_total = $mem_free + $mem_used;
 	
+	
+	check_oid_return($mem_used, $check_type);
+	check_oid_return($mem_free, $check_type);
+	
+	
 	$mem_used = int($mem_used / 1024 / 1024);
 	$mem_free = int($mem_free / 1024 / 1024);
 	$mem_total = int($mem_total / 1024 / 1024);
+	
 	
 	my $mem_free_perc = int($mem_free / $mem_total * 100);
 	
@@ -306,6 +315,10 @@ if($check_type =~ /^temp/) {
 	my $R_load_5m = $snmp_session->get_request(-varbindlist => [$S_load_5m]);
 	my $load_5m = "$R_load_5m->{$S_load_5m}";
 	
+	check_oid_return($load_5s, $check_type);
+	check_oid_return($load_1m, $check_type);
+	check_oid_return($load_5m, $check_type);
+	
 	if($load_5s <= $warn) {
 		$stat = 0;
 		$msg = "Cpu: OK - Cpu Load $load_5s% $load_1m% $load_5m%";
@@ -337,6 +350,11 @@ if($check_type =~ /^temp/) {
 			$total_err = $total_err + 1;
 			$err_msg = "$err_msg $name -> $phy_dev_status{$stat}";
 		}
+	}
+	
+	if($sum == 0) {
+		print "fan: CRIT - No Fans are running\n";
+		exit(1);
 	}
 	
 	if($total_err != 0) {
