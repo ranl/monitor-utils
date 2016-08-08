@@ -89,8 +89,8 @@ if($warn[1] > $crit[1]) {
 our $snmp_session = _create_session($opt{'host'},$opt{'com'});
 my $internal = _get_oid_value($snmp_session,$s_internal);
 my $external = _get_oid_value($snmp_session,$s_external);
-$internal = int(substr($internal,0,2) . "." . substr($internal,2,2));
-$external = int(substr($external,0,2) . "." . substr($external,2,2));
+$internal = $internal / 100.0;
+$external = $external / 100.0;
 
 my $istat = 0;
 my $estat = 0;
