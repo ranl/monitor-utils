@@ -194,6 +194,11 @@ our $snmp_session = _create_session($switch,$community);
 if($check_type =~ /^temp/) {
 	my $temp;
 	my $R_tbl = $snmp_session->get_table($S_temp);
+	if (!defined $R_tbl) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
+
 	foreach my $oid ( keys %$R_tbl) {
 		$temp = "$$R_tbl{$oid}";
 		last;
@@ -236,8 +241,17 @@ if($check_type =~ /^temp/) {
 
 } elsif($check_type eq "mem") {
 	my $R_mem_used = $snmp_session->get_request(-varbindlist => [$S_mem_used]);
+	if (!defined $R_mem_used) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
+	
 	my $mem_used = "$R_mem_used->{$S_mem_used}";
 	my $R_mem_free = $snmp_session->get_request(-varbindlist => [$S_mem_free]);
+	if (!defined $R_mem_free) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
 	my $mem_free = "$R_mem_free->{$S_mem_free}";
 	my $mem_total = $mem_free + $mem_used;
 	
@@ -272,9 +286,17 @@ if($check_type =~ /^temp/) {
 	my $R_tbl;
 	if ($oidint) {
 		$R_tbl = $snmp_session->get_request(-varbindlist => ["$oidint"]);
+		if (!defined $R_tbl) {
+			printf "SNMP error: %s\n", $snmp_session->error();
+			exit(2);
+		}
 		$int = $$R_tbl{"$oidint"};
 	} else {
 		$R_tbl = $snmp_session->get_table($S_int_desc);
+		if (!defined $R_tbl) {
+			printf "SNMP error: %s\n", $snmp_session->error();
+			exit(2);
+		}
 	}
 	my $is_int_exists = 0;
 	foreach my $oid ( keys %$R_tbl) {
@@ -284,6 +306,10 @@ if($check_type =~ /^temp/) {
 			my $id = "$oid";
 			$id =~ s/$S_int_desc\.//;
 			my $R_stat = $snmp_session->get_request(-varbindlist => ["$S_int_operstatus.$id"]);
+			if (!defined $R_stat) {
+				printf "SNMP error: %s\n", $snmp_session->error();
+				exit(2);
+			}
 			my $int_stat = $R_stat->{"$S_int_operstatus.$id"};
 			if($int_stat != 1) {
 				$stat = 2;
@@ -309,10 +335,22 @@ if($check_type =~ /^temp/) {
 
 } elsif($check_type eq "cpu") {
 	my $R_load_5s = $snmp_session->get_request(-varbindlist => [$S_load_5s]);
+	if (!defined $R_load_5s) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
 	my $load_5s = "$R_load_5s->{$S_load_5s}";
 	my $R_load_1m = $snmp_session->get_request(-varbindlist => [$S_load_1m]);
+	if (!defined $R_load_1m) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
 	my $load_1m = "$R_load_1m->{$S_load_1m}";
 	my $R_load_5m = $snmp_session->get_request(-varbindlist => [$S_load_5m]);
+	if (!defined $R_load_5m) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
 	my $load_5m = "$R_load_5m->{$S_load_5m}";
 	
 	check_oid_return($load_5s, $check_type);
@@ -336,6 +374,10 @@ if($check_type =~ /^temp/) {
 
 } elsif($check_type eq "fan") {
 	my $R_tbl = $snmp_session->get_table($S_fan_name);
+	if (!defined $R_tbl) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
 	my $total_err = 0;
 	my $err_msg;
 	my $sum = 0;
@@ -345,6 +387,10 @@ if($check_type =~ /^temp/) {
 		my $id = "$oid";
 		$id =~ s/$S_fan_name\.//;
 		my $R_stat = $snmp_session->get_request(-varbindlist => ["$S_fan_stat.$id"]);
+		if (!defined $R_stat) {
+			printf "SNMP error: %s\n", $snmp_session->error();
+			exit(2);
+		}
 		my $stat = $R_stat->{"$S_fan_stat.$id"};
 		if($stat != 1) {
 			$total_err = $total_err + 1;
@@ -380,6 +426,11 @@ if($check_type =~ /^temp/) {
 
 } elsif($check_type eq "ps") {
 	my $R_tbl = $snmp_session->get_table($S_ps_name);
+	if (!defined $R_tbl) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
+
 	my $total_err = 0;
 	my $err_msg;
 	my $sum = 0;
@@ -389,6 +440,11 @@ if($check_type =~ /^temp/) {
 		my $id = "$oid";
 		$id =~ s/$S_ps_name\.//;
 		my $R_stat = $snmp_session->get_request(-varbindlist => ["$S_ps_stat.$id"]);
+		if (!defined $R_stat) {
+			printf "SNMP error: %s\n", $snmp_session->error();
+			exit(2);
+		}
+
 		my $stat = $R_stat->{"$S_ps_stat.$id"};
 		if($stat != 1) {
 			$total_err = $total_err + 1;
@@ -419,6 +475,10 @@ if($check_type =~ /^temp/) {
 
 } elsif($check_type eq "module") {
 	my $R_tbl = $snmp_session->get_table($S_module_status);
+	if (!defined $R_tbl) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
 	my $total_err = 0;
 	my $err_msg;
 	my $sum = 0;
@@ -462,9 +522,17 @@ if($check_type =~ /^temp/) {
 } elsif($check_type eq "freeint") {
 	
 	my $R_int_number = $snmp_session->get_request(-varbindlist => [$S_int_number]);
+	if (!defined $R_int_number) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
 	my $int_number = $R_int_number->{$S_int_number};
 	
 	my $R_tbl = $snmp_session->get_table($S_int_desc);
+	if (!defined $R_tbl) {
+		printf "SNMP error: %s\n", $snmp_session->error();
+		exit(2);
+	}
 	my @ints;
 	my $down = 0;
 	my $sum = 0;
@@ -477,18 +545,38 @@ if($check_type =~ /^temp/) {
 			
 			# Admin Status
 			my $R_int_adminstatus = $snmp_session->get_request(-varbindlist => ["$S_int_adminstatus.$id"]);
+			if (!defined $R_int_adminstatus) {
+				printf "SNMP error: %s\n", $snmp_session->error();
+				exit(2);
+			}
 			my $int_adminstatus = $R_int_adminstatus->{"$S_int_adminstatus.$id"};
 			# Oper Status
 			my $R_int_operstatus = $snmp_session->get_request(-varbindlist => ["$S_int_operstatus.$id"]);
+			if (!defined $R_int_operstatus) {
+				printf "SNMP error: %s\n", $snmp_session->error();
+				exit(2);
+			}
 			my $int_operstatus = $R_int_operstatus->{"$S_int_operstatus.$id"};
 			# Inbout
 			my $R_int_InOctets = $snmp_session->get_request(-varbindlist => ["$S_int_InOctets.$id"]);
+			if (!defined $R_int_InOctets) {
+				printf "SNMP error: %s\n", $snmp_session->error();
+				exit(2);
+			}
 			my $int_InOctets = $R_int_InOctets->{"$S_int_InOctets.$id"};
 			# Outbound
 			my $R_int_OutOctets = $snmp_session->get_request(-varbindlist => ["$S_int_OutOctets.$id"]);
+			if (!defined $R_int_OutOctets) {
+				printf "SNMP error: %s\n", $snmp_session->error();
+				exit(2);
+			}
 			my $int_OutOctets = $R_int_OutOctets->{"$S_int_OutOctets.$id"};
 			# Last Change
 			my $R_int_lastchange = $snmp_session->get_request(-varbindlist => ["$S_int_lastchange.$id"]);
+			if (!defined $R_int_lastchange) {
+				printf "SNMP error: %s\n", $snmp_session->error();
+				exit(2);
+			}
 			my $int_lastchange = $R_int_lastchange->{"$S_int_lastchange.$id"};
 			my @lastchanged = split(" ",$int_lastchange);
 			
