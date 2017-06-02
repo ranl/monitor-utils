@@ -46,6 +46,7 @@ use File::Basename;
 use Getopt::Long;
 use Time::Local;
 use IPC::Cmd qw(run_forked);
+use Time::HiRes qw[ time alarm ];
 
 Getopt::Long::Configure('bundling');
 
@@ -538,6 +539,7 @@ if (!defined($counterFilePath)) {
 
 
 # Starting Alarm
+$SIG{ALRM} = sub {print "Script execution timeout\n"; exit 2};
 alarm($TIMEOUT);
 
 # Establish SNMP Session
