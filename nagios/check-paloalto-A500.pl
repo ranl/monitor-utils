@@ -51,6 +51,8 @@ my $s_pa_total_active_sessions = '.1.3.6.1.4.1.25461.2.1.2.3.3.0';
 my $s_pa_total_tcp_active_sessions = '.1.3.6.1.4.1.25461.2.1.2.3.4.0';
 my $s_pa_total_udp_active_sessions = '.1.3.6.1.4.1.25461.2.1.2.3.5.0';
 my $s_pa_total_icmp_active_sessions = '.1.3.6.1.4.1.25461.2.1.2.3.6.0';
+my $s_mgmt_max_mem = '.1.3.6.1.2.1.25.2.3.1.5.1020';
+my $s_mgmt_used_mem = '.1.3.6.1.2.1.25.2.3.1.6.1020';
 
 ### Functions
 ###############
@@ -72,7 +74,7 @@ sub FSyntaxError {
     print "Version : $script_version\n";
     print "-H = Ip/Dns Name of the FW\n";
     print "-C = SNMP Community\n";
-    print "-t = Check type (currently only cpu/firmware/model/ha/sessions/icmp_sessions/tcp_sessions/udp_sessions)\n";
+    print "-t = Check type (currently only cpu/firmware/model/ha/sessions/icmp_sessions/tcp_sessions/udp_sessions/mgmt_used_mem)\n";
     print "-w = Warning Value\n";
     print "-c = Critical Value\n";
     exit(3);
@@ -93,6 +95,7 @@ my $int;
 
 while(@ARGV) {
     my $temp = shift(@ARGV);
+
     if("$temp" eq '-H') {
 	$switch = shift(@ARGV);
     } elsif("$temp" eq '-C') {
@@ -222,6 +225,28 @@ elsif($check_type eq "icmp_sessions") {
 
     }
 	$perf="";
+}
+
+### management used memory ###
+elsif($check_type eq "mgmt_used_mem") {
+    my $R_firm = $snmp_session->get_request(-varbindlist => [$s_mgmt_used_mem]);
+    my $mgmt_used_mem = "$R_firm->{$s_mgmt_used_mem}";
+
+    my $R_firm = $snmp_session->get_request(-varbindlist => [$s_mgmt_max_mem]);
+    my $mgmt_max_mem = "$R_firm->{$s_mgmt_max_mem}";
+
+    if($mgmt_used_mem > $crit ) {
+	$msg =  "CRITICAL: Management Used Memory: $mgmt_used_mem";
+	$stat = 2;
+    } elsif($mgmt_used_mem  > $warn ) {
+	$msg =  "WARNING: Management Used Memory: $mgmt_used_mem";
+	$stat = 1;
+    } else {
+	$msg =  "OK: Management Used Memory: $mgmt_used_mem";
+	$stat = 0;
+    }
+    $msg .= " - Max Management Memory: $mgmt_max_mem";
+    $perf="";
 }
 
 ### firmware ###
