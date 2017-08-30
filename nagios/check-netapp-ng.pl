@@ -505,6 +505,7 @@ my $result = GetOptions(\%opt,
                                                 'exclude|e=s',
                                                 'inform|I',
                                                 'timeout|t=i',
+						"help|h",
                                                 'version!',
                                                 );
 if(defined $opt{'version'}) {
