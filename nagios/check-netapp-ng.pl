@@ -53,7 +53,7 @@ my $stat = 0;
 my $msg;
 my $perf;
 my $script_name = basename($0);
-my $script_version = 1.3;
+my $script_version = '1.3.1';
 
 my $counterFilePath="/tmp";
 my $counterFile;
@@ -326,8 +326,8 @@ sub uniq(@) {
 }
 
 sub _create_session(@) {
-        my ($server, $comm, $version, $timeout) = @_;
-        my ($sess, $err) = Net::SNMP->session( -hostname => $server, -version => $version, -community => $comm, -timeout => $timeout);
+        my ($server, $comm, $snmp_version, $timeout) = @_;
+        my ($sess, $err) = Net::SNMP->session( -hostname => $server, -version => $snmp_version, -community => $comm, -timeout => $timeout);
         if (!defined($sess)) {
                 print "Can't create SNMP session to $server\n";
                 exit(1);
@@ -356,6 +356,7 @@ This is $script_name in version $script_version.
     -e <vol1[,vol2[,...]]>  Exclude volumes from snap check (SNAPSHOT/SNAPSHOTAGE)
     -I                      Inform only, return OK every time (ignore -w and -c values)
     -h                      This help
+	--version				Display : Date - Script_name - Script_version - no check performed.
 
   Available check types:
     TEMP              - Temperature
@@ -491,12 +492,12 @@ sub _ulong64(@) {
 #############################
 $opt{'crit'} = 500;
 $opt{'warn'} = 500;
-$opt{'version'} = 2;
+$opt{'snmp_version'} = 2;
 $opt{'timeout'} = 60;
 my $result = GetOptions(\%opt,
                                                 'filer|H=s',
                                                 'community|C=s',
-                                                'version|V=s',
+                                                'snmp_version|V=s',
                                                 'check_type|T=s',
                                                 'warn|w=i',
                                                 'crit|c=i',
@@ -504,9 +505,17 @@ my $result = GetOptions(\%opt,
                                                 'exclude|e=s',
                                                 'inform|I',
                                                 'timeout|t=i',
-                                                "help|h",
+						 "help|h",
+                                                'version!',
                                                 );
-
+if(defined $opt{'version'}) {
+    $state = "OK";
+	my ($sec,$min,$hour,$day,$month,$yr19,@rest) =   localtime(time);
+	my $DT=sprintf("%04d-%02d-%02d %02d:%02d:%02d", $yr19+1900, ($month+1), $day , $hour, $min, $sec);
+    $answer = "$DT - $script_name \$Revision: $script_version - no check performed.";
+    print "$state: $answer\n";
+    exit $ERRORS{$state};
+}
 FSyntaxError("") if defined $opt{'help'};
 FSyntaxError("Missing -H")  unless defined $opt{'filer'};
 FSyntaxError("Missing -C")  unless defined $opt{'community'};
@@ -523,7 +532,7 @@ if($opt{'crit'} and $opt{'warn'}) {
 }
 
 if( ($opt{'check_type'} eq 'ISCSIOPS') or ($opt{'check_type'} eq 'FCPOPS') ) {
-        $opt{'version'} = '2c';
+        $opt{'snmp_version'} = '2c';
 }
 
 if (!defined($counterFilePath)) {
@@ -541,7 +550,7 @@ if (!defined($counterFilePath)) {
 alarm($TIMEOUT);
 
 # Establish SNMP Session
-our $snmp_session = _create_session($opt{'filer'},$opt{'community'},$opt{'version'},$opt{'timeout'});
+our $snmp_session = _create_session($opt{'filer'},$opt{'community'},$opt{'snmp_version'},$opt{'timeout'});
 
 # setup counterFile now that we have host IP and check type
 $counterFile = $counterFilePath."/".$opt{'filer'}.".check-netapp-ng.$opt{'check_type'}.nagioscache";
@@ -752,7 +761,7 @@ if("$opt{'check_type'}" eq "TEMP") {
                         my $oid = pop(@tmp_arr);
                         my $used = "";
                         my $capacity = "";
-                        if ($opt{'version'} eq '2c') {
+                        if ($opt{'snmp_version'} eq '2c') {
                                 $used = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df64_used.$oid");
                                 $capacity = _get_oid_value($snmp_session,"$snmp_netapp_volume_id_table_df64_total.$oid");
                         }
