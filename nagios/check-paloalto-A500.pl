@@ -139,9 +139,20 @@ elsif($check_type eq "ha") {
     my $R_firm = $snmp_session->get_request(-varbindlist => [$s_ha_peer_state]);
     my $ha_peer_state = "$R_firm->{$s_ha_peer_state}";
 
-    $msg =  "OK: High Availablity Mode: $ha_mode, Local: $ha_local_state, Peer: $ha_peer_state\n";
+    if ( ($ha_local_state eq "unknown") or ($ha_peer_state eq "unkown") ) {
+        $msg =  "UNKNOWN: High Availablity Mode: $ha_mode, Local: $ha_local_state, Peer: $ha_peer_state\n";
+        $stat = 3;
+    }
+    elsif ( ($ha_local_state eq "non-functional") or ($ha_peer_state eq "non-functional") ) {
+        $msg =  "CRITICAL: High Availablity Mode: $ha_mode, Local: $ha_local_state, Peer: $ha_peer_state\n";
+        $stat = 2;
+    }
+    else {
+        $msg =  "OK: High Availablity Mode: $ha_mode, Local: $ha_local_state, Peer: $ha_peer_state\n";
+        $stat = 0;
+    }
+
     $perf="";
-    $stat = 0;
 }
 
 
@@ -153,7 +164,7 @@ elsif($check_type eq "sessions") {
     my $R_firm = $snmp_session->get_request(-varbindlist => [$s_pa_total_active_sessions]);
     my $pa_total_active_sessions = "$R_firm->{$s_pa_total_active_sessions}";
 
-	$perf=" - Max Active Sessions :  $pa_max_sessions";
+    $perf=" - Max Active Sessions :  $pa_max_sessions|'sessions'=$pa_total_active_sessions;$warn;$crit";
     
     if($pa_total_active_sessions > $crit ) {
 	$msg =  "CRITICAL: Total Active Sessions: $pa_total_active_sessions".$perf;
@@ -173,14 +184,16 @@ elsif($check_type eq "tcp_sessions") {
     my $R_firm = $snmp_session->get_request(-varbindlist => [$s_pa_total_tcp_active_sessions]);
     my $pa_total_tcp_active_sessions = "$R_firm->{$s_pa_total_tcp_active_sessions}";
 
+    $perf="|'tcp_sessions'=$pa_total_tcp_active_sessions;$warn;$crit";
+
     if($pa_total_tcp_active_sessions > $crit ) {
-	$msg =  "CRITICAL: TCP Active Sessions: $pa_total_tcp_active_sessions";
+	$msg =  "CRITICAL: TCP Active Sessions: $pa_total_tcp_active_sessions".$perf;
 	$stat = 2;
     } elsif($pa_total_tcp_active_sessions > $warn ) {
-	$msg =  "WARNING: TCP Active Sessions: $pa_total_tcp_active_sessions";
+	$msg =  "WARNING: TCP Active Sessions: $pa_total_tcp_active_sessions".$perf;
 	$stat = 1;
     } else {
-	$msg =  "OK: TCP Active Sessions: $pa_total_tcp_active_sessions";
+	$msg =  "OK: TCP Active Sessions: $pa_total_tcp_active_sessions".$perf;
 	$stat = 0;
     }
 	$perf="";
@@ -190,15 +203,17 @@ elsif($check_type eq "tcp_sessions") {
 elsif($check_type eq "udp_sessions") {
     my $R_firm = $snmp_session->get_request(-varbindlist => [$s_pa_total_udp_active_sessions]);
     my $pa_total_udp_active_sessions = "$R_firm->{$s_pa_total_udp_active_sessions}";
+
+    $perf="|'udp_sessions'=$pa_total_udp_active_sessions;$warn;$crit";
     
     if($pa_total_udp_active_sessions > $crit ) {
-	$msg =  "CRITICAL: UDP Active Sessions: $pa_total_udp_active_sessions";
+	$msg =  "CRITICAL: UDP Active Sessions: $pa_total_udp_active_sessions".$perf;
 	$stat = 2;
     } elsif($pa_total_udp_active_sessions > $warn ) {
-	$msg =  "WARNING: UDP Active Sessions: $pa_total_udp_active_sessions";
+	$msg =  "WARNING: UDP Active Sessions: $pa_total_udp_active_sessions".$perf;
 	$stat = 1;
     } else {
-	$msg =  "OK: UDP Active Sessions: $pa_total_udp_active_sessions";
+	$msg =  "OK: UDP Active Sessions: $pa_total_udp_active_sessions".$perf;
 	$stat = 0;
     }
 	$perf="";
@@ -209,15 +224,16 @@ elsif($check_type eq "icmp_sessions") {
     my $R_firm = $snmp_session->get_request(-varbindlist => [$s_pa_total_icmp_active_sessions]);
     my $pa_total_icmp_active_sessions = "$R_firm->{$s_pa_total_icmp_active_sessions}";
 
+    $perf="|'icmp_sessions'=$pa_total_icmp_active_sessions;$warn;$crit";
     
     if($pa_total_icmp_active_sessions > $crit ) {
-	$msg =  "CRITICAL: ICMP Active Sessions: $pa_total_icmp_active_sessions";
+	$msg =  "CRITICAL: ICMP Active Sessions: $pa_total_icmp_active_sessions".$perf;
 	$stat = 2;
     } elsif($pa_total_icmp_active_sessions > $warn ) {
-	$msg =  "WARNING: ICMP Active Sessions: $pa_total_icmp_active_sessions";
+	$msg =  "WARNING: ICMP Active Sessions: $pa_total_icmp_active_sessions".$perf;
 	$stat = 1;
     } else {
-	$msg =  "OK: ICMP Active Sessions: $pa_total_icmp_active_sessions";
+	$msg =  "OK: ICMP Active Sessions: $pa_total_icmp_active_sessions".$perf;
 	$stat = 0;
 
     }
